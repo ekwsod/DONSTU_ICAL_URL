@@ -1,9 +1,0 @@
-name: test-access
-on: workflow_dispatch
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -sS --max-time 30 -o out.ics -w "HTTP %{http_code}, %{size_download} bytes\n" "$URL"; head -c 15 out.ics
-        env:
-          URL: ${{ secrets.DONSTU_ICAL_URL }}
