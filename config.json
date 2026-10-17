@@ -1,0 +1,11 @@
+{
+  "subgroup": 1,
+  "prep_minutes": 90,
+  "latest_alarm": "10:00",
+  "slots": [
+    "07:00",
+    "08:45",
+    "10:00"
+  ],
+  "timezone": "Europe/Moscow"
+}

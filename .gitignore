@@ -1,0 +1,20 @@
+# Файлы календарей и локальные сэмплы
+*.ics
+samples/
+
+# Python кэш и окружение
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+venv/
+.venv/
+env/
+
+# Локально сгенерированные файлы сборки (на Pages публикуются через Actions)
+public/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
