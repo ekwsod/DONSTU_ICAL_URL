@@ -117,6 +117,30 @@ class TestSubgroupFilter(unittest.TestCase):
         self.assertFalse(is_user_event(event_sub2, target_subgroup=1))
         self.assertTrue(is_user_event(event_pe, target_subgroup=1))
 
+    def test_exclude_russian_as_foreign_language(self):
+        """Проверка исключения пар по русскому языку как иностранному (РКИ)."""
+        tz_msk = ZoneInfo("Europe/Moscow")
+        dummy_dt = datetime(2026, 10, 17, 8, 30, tzinfo=tz_msk)
+
+        event_rki_1 = ICalEvent("10", "пр Иностранный язык (русский язык как иностранный)", "6-204", dummy_dt, None)
+        event_rki_2 = ICalEvent("11", "Русский язык как иностранный", "6-205", dummy_dt, None)
+        event_rki_3 = ICalEvent("12", "Иностранный язык (РКИ)", "6-206", dummy_dt, None)
+        event_eng_sub1 = ICalEvent("13", "пр Иностранный язык (английский язык) п/г 1", "6-207", dummy_dt, None)
+
+        self.assertFalse(is_user_event(event_rki_1, target_subgroup=1))
+        self.assertFalse(is_user_event(event_rki_2, target_subgroup=1))
+        self.assertFalse(is_user_event(event_rki_3, target_subgroup=1))
+        self.assertTrue(is_user_event(event_eng_sub1, target_subgroup=1))
+
+    def test_custom_exclude_keywords(self):
+        """Проверка работы произвольного списка исключений exclude_keywords."""
+        tz_msk = ZoneInfo("Europe/Moscow")
+        dummy_dt = datetime(2026, 10, 17, 8, 30, tzinfo=tz_msk)
+
+        event = ICalEvent("20", "Лек. Факультатив по астрономии", "1-100", dummy_dt, None)
+        self.assertTrue(is_user_event(event, target_subgroup=1))
+        self.assertFalse(is_user_event(event, target_subgroup=1, exclude_keywords=["астрономия"]))
+
 
 class TestPrivacySanitizer(unittest.TestCase):
     def test_sanitize_title(self):

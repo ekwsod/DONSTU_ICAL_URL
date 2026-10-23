@@ -7,5 +7,10 @@
     "08:45",
     "10:00"
   ],
-  "timezone": "Europe/Moscow"
+  "timezone": "Europe/Moscow",
+  "exclude_keywords": [
+    "русский язык как иностранный",
+    "русский как иностранный",
+    "рки"
+  ]
 }

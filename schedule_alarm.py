@@ -29,12 +29,19 @@ class Config:
     latest_alarm: str = "10:00"
     slots: list[str] = None
     timezone_name: str = "Europe/Moscow"
+    exclude_keywords: list[str] = None
 
     def __post_init__(self):
         if self.slots is None:
             self.slots = ["07:00", "08:45", "10:00"]
         # Сортируем слоты по времени
         self.slots = sorted(self.slots, key=time_str_to_minutes)
+        if self.exclude_keywords is None:
+            self.exclude_keywords = [
+                "русский язык как иностранный",
+                "русский как иностранный",
+                "рки",
+            ]
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> Config:
@@ -50,12 +57,20 @@ class Config:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            exclude_kw = data.get("exclude_keywords")
+            if exclude_kw is None:
+                exclude_kw = [
+                    "русский язык как иностранный",
+                    "русский как иностранный",
+                    "рки",
+                ]
             return cls(
                 subgroup=int(data.get("subgroup", 1)),
                 prep_minutes=int(data.get("prep_minutes", 90)),
                 latest_alarm=str(data.get("latest_alarm", "10:00")),
                 slots=list(data.get("slots", ["07:00", "08:45", "10:00"])),
                 timezone_name=str(data.get("timezone", "Europe/Moscow")),
+                exclude_keywords=list(exclude_kw),
             )
         except Exception:
             # При любой ошибке парсинга конфига возвращаем стандартные значения
@@ -193,13 +208,34 @@ def extract_subgroup(summary: str) -> int | None:
     return None
 
 
-def is_user_event(event: ICalEvent, target_subgroup: int) -> bool:
+def is_user_event(event: ICalEvent, target_subgroup: int, exclude_keywords: list[str] | None = None) -> bool:
     """
     Проверка, относится ли событие к выбранной подгруппе.
-    Пара считается своей, если в ней нет пометки подгруппы (общая пара)
-    или указана именно наша подгруппа.
+    Пара считается своей, если:
+    1. Название не содержит исключённых ключевых слов (например, 'русский язык как иностранный').
+    2. В ней нет пометки подгруппы (общая пара) или указана именно наша подгруппа.
     """
-    sg = extract_subgroup(event.summary)
+    summary = event.summary.strip()
+    summary_lower = summary.lower()
+
+    # Проверка списка исключений (например, русский язык как иностранный)
+    if exclude_keywords:
+        for kw in exclude_keywords:
+            kw_clean = kw.strip().lower()
+            if not kw_clean:
+                continue
+            if kw_clean in summary_lower:
+                return False
+            # Проверка основы слова для учета русских окончаний (падежей)
+            stem = re.sub(r"[аяоеиыейью]$", "", kw_clean)
+            if len(stem) >= 4 and stem in summary_lower:
+                return False
+
+    # Встроенный фильтр РКИ (русский язык как иностранный в различных написаниях)
+    if re.search(r"русск\w*.*иностранн\w*|иностранн\w*.*русск\w*|\bрки\b", summary_lower):
+        return False
+
+    sg = extract_subgroup(summary)
     if sg is None:
         return True
     return sg == target_subgroup
@@ -250,8 +286,11 @@ def calculate_day_schedule(events: list[ICalEvent], target_date: date, config: C
     Слот = самый поздний слот из config.slots, который <= target.
     Если такого нет — берется самый ранний слот с предупреждением.
     """
-    # Фильтруем события по дате и подгруппе
-    day_events = [e for e in events if e.dtstart.date() == target_date and is_user_event(e, config.subgroup)]
+    # Фильтруем события по дате и подгруппе (с учетом исключенных предметов)
+    day_events = [
+        e for e in events
+        if e.dtstart.date() == target_date and is_user_event(e, config.subgroup, config.exclude_keywords)
+    ]
 
     # Сортируем пары по времени начала
     day_events.sort(key=lambda e: e.dtstart)
