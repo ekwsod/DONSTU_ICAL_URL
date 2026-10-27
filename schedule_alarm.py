@@ -433,6 +433,7 @@ def push_to_worker(payload: dict, url: str, token: str, timeout: int = 30) -> No
     """
     Отправка списка пар в Worker бота (POST JSON с Bearer-токеном).
     Адрес и токен НИКОГДА не выводятся в логи или исключения.
+    User-Agent обязателен: Cloudflare отклоняет «Python-urllib» ошибкой 1010 (HTTP 403).
     """
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
@@ -442,6 +443,7 @@ def push_to_worker(payload: dict, url: str, token: str, timeout: int = 30) -> No
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
+            "User-Agent": "Mozilla/5.0 (compatible; DSTUScheduleBot/1.0; +https://github.com/ekwsod/DONSTU_ICAL_URL)",
         },
     )
     with urllib.request.urlopen(request, timeout=timeout):
@@ -589,7 +591,10 @@ def main() -> None:
             push_to_worker(lessons, push_url, os.environ.get("BOT_PUSH_TOKEN", "").strip())
             print(f"[OK] Пары отправлены боту: {len(lessons['lessons'])} шт. на {config.lessons_horizon_days} дн.")
         except Exception as e:
-            print(f"[ПРЕДУПРЕЖДЕНИЕ] Не удалось отправить пары боту: {type(e).__name__}", file=sys.stderr)
+            # Код HTTP безопасно выводить: в нём нет ни адреса, ни токена.
+            code = getattr(e, "code", None)
+            detail = f" (HTTP {code})" if code else ""
+            print(f"[ПРЕДУПРЕЖДЕНИЕ] Не удалось отправить пары боту: {type(e).__name__}{detail}", file=sys.stderr)
 
 
 if __name__ == "__main__":

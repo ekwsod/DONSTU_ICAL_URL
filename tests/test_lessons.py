@@ -148,6 +148,14 @@ class TestPushToWorker(unittest.TestCase):
             self.assertEqual(request.get_method(), "POST")
             self.assertEqual(request.get_header("Authorization"), "Bearer secret")
 
+    def test_sends_browser_like_user_agent(self):
+        """Cloudflare режет «Python-urllib» ошибкой 1010, поэтому User-Agent задаём явно."""
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            push_to_worker({"lessons": []}, "https://example.invalid/push", "secret")
+            user_agent = urlopen.call_args[0][0].get_header("User-agent")
+            self.assertIsNotNone(user_agent)
+            self.assertNotIn("Python-urllib", user_agent)
+
 
 if __name__ == "__main__":
     unittest.main()
