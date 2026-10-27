@@ -225,6 +225,7 @@ describe("комментарий к плану", () => {
     expect(cleanComment('«**Возьми** зонт»')).toBe("Возьми зонт");
     expect(cleanComment("слово ".repeat(80))!.length).toBeLessThanOrEqual(300);
     expect(cleanComment("   ")).toBeNull();
+    expect(cleanComment("одевайся теплее")).toBe("Одевайся теплее");
   });
 
   it("модель молчит — комментария нет, план уходит без строки 💬", async () => {

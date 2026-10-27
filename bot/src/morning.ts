@@ -95,39 +95,48 @@ export function morningText(
   const due = homework.filter((h) => !h.done && h.due_date === first.date);
   const last = lessons[lessons.length - 1] ?? first;
   const finish = last.end ?? last.start;
+  const weather = forecast && dayWeather(forecast, first.date, lessons);
+
+  // Сообщение собирается из блоков: обычные разделяются пустой строкой, у плашек погоды
+  // Telegram сам рисует отступ, поэтому рядом с ними пустую строку не добавляем.
+  const blocks: { text: string; quote?: boolean }[] = [];
+  const add = (...lines: string[]) => blocks.push({ text: lines.join("\n") });
+  const quote = (lines: string[]) => blocks.push({ text: weatherQuote(lines), quote: true });
 
   // «(ауд. 1-111)» — сразу понятно, куда идти; «манеж» и прочее без номера — как есть.
   const where = first.room ? ` (${/^\d+-/.test(first.room) ? `ауд. ${first.room}` : first.room})` : "";
-  const lines = [`⏰ <b>Скоро выходить</b> — первая пара в <b>${first.start}</b>${escapeHtml(where)}`, ""];
+  add(`⏰ <b>Скоро выходить</b> — первая пара в <b>${first.start}</b>${escapeHtml(where)}`);
+  if (weather) quote(weather.top);
+  else add("Погоду сейчас не получить 🤷");
 
-  const weather = forecast && dayWeather(forecast, first.date, lessons);
-  lines.push(weather ? weatherQuote(weather.top) : "Погоду сейчас не получить 🤷", "");
-
-  lines.push(`<b>План на сегодня</b> (${lessons.length} ${lessons.length === 1 ? "пара" : lessons.length < 5 ? "пары" : "пар"}, до ${finish}):`);
   lessons.forEach((lesson, i) => {
     const prev = lessons[i - 1];
     if (prev?.end) {
       const gap = minutes(lesson.start) - minutes(prev.end);
-      if (gap > WINDOW_MINUTES) lines.push(`☕ окно ${prev.end}–${lesson.start} (${duration(gap)})`);
+      if (gap > WINDOW_MINUTES) add(`☕ Окно ${prev.end}–${lesson.start} · ${duration(gap)}`);
     }
     const number = PAIR_NUMBERS[lesson.start];
     const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
-    const type = TYPE_LABELS[lesson.type] ? ` (${TYPE_LABELS[lesson.type]})` : "";
-    lines.push(
-      `<b>${number ? `${number} пара · ` : ""}${time}</b> — ${TYPE_ICONS[lesson.type]} ${escapeHtml(lesson.title)}${type}`,
-    );
+    const type = TYPE_LABELS[lesson.type] ? ` · <i>${TYPE_LABELS[lesson.type]}</i>` : "";
+    const lines = [
+      `<b>${number ? `${number} пара · ` : ""}${time}</b>`,
+      `${TYPE_ICONS[lesson.type]} ${escapeHtml(lesson.title)}${type}`,
+    ];
     if (lesson.room) lines.push(`📍 ${escapeHtml(formatRoom(lesson.room))}`);
-    for (const h of due.filter((h) => h.due_lesson_id === lesson.id)) {
-      lines.push(`📝 сдать: ${escapeHtml(h.text)}`);
-    }
+    for (const h of due.filter((h) => h.due_lesson_id === lesson.id)) lines.push(`📝 Сдать: ${escapeHtml(h.text)}`);
+    add(...lines);
   });
-  lines.push(`🏁 Пары закончатся в ${finish}`);
-  if (weather?.after) lines.push(weatherQuote([weather.after]));
+
+  add(`🏁 Пары закончатся в <b>${finish}</b>`);
+  if (weather?.after) quote([weather.after]);
 
   const loose = due.filter((h) => !lessons.some((l) => l.id === h.due_lesson_id));
   if (loose.length > 0) {
-    lines.push("", "<b>Ещё сдать сегодня:</b>", ...loose.map((h) => `📝 ${escapeHtml(h.title)}: ${escapeHtml(h.text)}`));
+    add("<b>Ещё сдать сегодня:</b>", ...loose.map((h) => `📝 ${escapeHtml(h.title)}: ${escapeHtml(h.text)}`));
   }
-  if (comment) lines.push("", `💬 <i>${escapeHtml(comment)}</i>`);
-  return lines.join("\n");
+  if (comment) add(`💬 <i>${escapeHtml(comment)}</i>`);
+
+  return blocks
+    .map((b, i) => (i === 0 ? b.text : `${b.quote || blocks[i - 1].quote ? "\n" : "\n\n"}${b.text}`))
+    .join("");
 }

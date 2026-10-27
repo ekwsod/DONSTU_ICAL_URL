@@ -98,6 +98,7 @@ export function cleanComment(text: string): string | null {
     .trim()
     .replace(/^["«]|["»]$/g, "");
   if (!clean) return null;
+  clean = clean[0].toUpperCase() + clean.slice(1);
   if (clean.length > 300) clean = `${clean.slice(0, 297).replace(/\s+\S*$/, "")}…`;
   return clean;
 }
