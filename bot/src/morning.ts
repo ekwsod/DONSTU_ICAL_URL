@@ -1,4 +1,4 @@
-import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom } from "./ui";
+import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom, roomSuffix } from "./ui";
 import { dayWeather, type Forecast } from "./weather";
 import type { Homework, Lesson } from "./types";
 
@@ -85,9 +85,8 @@ export function morningText(first: Lesson, todayLessons: Lesson[], forecast: For
   const last = lessons[lessons.length - 1] ?? first;
   const finish = last.end ?? last.start;
 
-  // «(ауд. 1-111)» — сразу понятно, куда идти; «манеж» и прочее без номера — как есть.
-  const where = first.room ? ` (${/^\d+-/.test(first.room) ? `ауд. ${first.room}` : first.room})` : "";
-  const lines = [`⏰ <b>Скоро выходить</b> — первая пара в <b>${first.start}</b>${escapeHtml(where)}`, ""];
+  // «(ауд. 1-111)» — сразу понятно, куда идти.
+  const lines = [`⏰ <b>Скоро выходить</b> — первая пара в <b>${first.start}</b>${escapeHtml(roomSuffix(first.room))}`, ""];
 
   const weather = forecast && dayWeather(forecast, first.date, lessons);
   lines.push(...(weather ? weather.top.map(escapeHtml) : ["Погоду сейчас не получить 🤷"]), "");
