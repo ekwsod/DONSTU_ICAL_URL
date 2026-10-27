@@ -1,6 +1,6 @@
 import { InlineKeyboard, Keyboard } from "grammy";
 import type { DueOption } from "./homework";
-import type { DueMode, Homework, Lesson, LessonType } from "./types";
+import type { DueMode, Homework, Lesson, LessonType, Settings } from "./types";
 
 const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const WEEKDAYS_FULL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
@@ -88,6 +88,15 @@ export function weekTitle(today: string, offset: number): string {
   return `${name}: ${range(days[0])} – ${range(days[6])}`;
 }
 
+/** Однострочная сводка на сегодня: «📅 Сегодня, 28 октября: 2 пары, первая в 08:30 · ☁️ +17°». */
+export function todaySummary(today: string, lessons: Lesson[], weather: string | null): string {
+  const d = parse(today);
+  const head = `📅 Сегодня, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  const first = [...lessons].sort((a, b) => a.start.localeCompare(b.start))[0];
+  const body = first ? `${pairs(lessons.length)}, первая в ${first.start}` : "пар нет 🎉";
+  return `${head}: ${body}${weather ? ` · ${weather}` : ""}`;
+}
+
 export function mainMenu(): Keyboard {
   return new Keyboard()
     .text(MENU.thisWeek)
@@ -99,29 +108,37 @@ export function mainMenu(): Keyboard {
     .persistent();
 }
 
+export interface WeekData {
+  lessons: Map<string, number>;
+  homework: Map<string, number>;
+  /** Метка погоды на день, например «☁️ +17°»; дней вне прогноза нет в карте. */
+  weather?: Map<string, string>;
+}
+
 /**
- * Неделя: по кнопке на день с числом пар и дз, внизу переключение недель.
+ * Неделя: по кнопке на день с числом пар, дз и погодой, внизу переключение недель.
  * mode «view» открывает день, «due» выбирает дату срока дз.
  * Воскресенье без пар и дз скрыто, чтобы не занимать место.
  */
 export function weekKeyboard(
   today: string,
   offset: number,
-  lessonCounts: Map<string, number>,
-  homeworkCounts: Map<string, number>,
+  data: WeekData,
   mode: "view" | "due" = "view",
 ): InlineKeyboard {
   const kb = new InlineKeyboard();
   const [dayAction, weekAction] = mode === "view" ? ["d", "w"] : ["dd", "dw"];
 
   for (const date of weekDates(today, offset)) {
-    const lessons = lessonCounts.get(date) ?? 0;
-    const homework = homeworkCounts.get(date) ?? 0;
+    const lessons = data.lessons.get(date) ?? 0;
+    const homework = data.homework.get(date) ?? 0;
     if (parse(date).getUTCDay() === 0 && lessons === 0 && homework === 0) continue;
 
     const parts = [`${date === today ? "• " : ""}${shortDate(date)} ${MONTHS_SHORT[parse(date).getUTCMonth()]}`];
     parts.push(lessons > 0 ? pairs(lessons) : "нет пар");
     if (homework > 0) parts.push(`📝${homework}`);
+    const weather = data.weather?.get(date);
+    if (weather) parts.push(weather);
     kb.text(parts.join(" · "), `${dayAction}:${date}`).row();
   }
 
@@ -168,11 +185,11 @@ function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
 }
 
 /**
- * Текст дня (HTML): каждая пара — отдельный блок через пустую строку,
+ * Текст дня (HTML): заголовок с погодой, каждая пара — отдельный блок через пустую строку,
  * время и предмет жирным, под парой — дз со сроком на неё.
  */
-export function dayText(date: string, lessons: Lesson[], homework: Homework[]): string {
-  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`]];
+export function dayText(date: string, lessons: Lesson[], homework: Homework[], weather: string[] = []): string {
+  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`, ...weather.map(escapeHtml)]];
   const due = homework.filter((h) => !h.done && h.due_date === date);
 
   if (lessons.length === 0) {
@@ -250,10 +267,24 @@ export function homeworkCardKeyboard(h: Homework): InlineKeyboard {
     .text("◀ Все дз", "hl");
 }
 
-export function settingsKeyboard(current: DueMode): InlineKeyboard {
+/** Варианты «за сколько минут до первой пары присылать погоду»; 0 — выключено. */
+export const WEATHER_LEADS = [0, 30, 45, 60, 90];
+
+export const SETTINGS_TEXT = [
+  "<b>Настройки</b>",
+  "",
+  "📝 <b>Срок дз</b> — первые три кнопки.",
+  "🌤 <b>Погода перед выходом</b> — нижний ряд: за сколько минут до первой пары написать.",
+].join("\n");
+
+export function settingsKeyboard(current: Settings): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const mode of Object.keys(MODE_LABELS) as DueMode[]) {
-    kb.text(`${mode === current ? "✅ " : ""}${MODE_LABELS[mode]}`, `set:${mode}`).row();
+    kb.text(`${mode === current.due_mode ? "✅ " : ""}${MODE_LABELS[mode]}`, `set:${mode}`).row();
+  }
+  for (const lead of WEATHER_LEADS) {
+    const label = lead === 0 ? "Выкл" : `${lead} мин`;
+    kb.text(`${lead === current.weather_lead ? "✅ " : ""}${label}`, `wl:${lead}`);
   }
   return kb;
 }

@@ -4,6 +4,9 @@ export interface Env {
   OWNER_CHAT_ID: string;
   WEBHOOK_SECRET: string;
   PUSH_TOKEN: string;
+  /** Координаты для прогноза погоды (по умолчанию — главный корпус ДГТУ). */
+  WEATHER_LAT: string;
+  WEATHER_LON: string;
 }
 
 export type LessonType = "lecture" | "practice" | "lab" | "other";
@@ -41,6 +44,8 @@ export type DueMode = "ask" | "next" | "lecture";
 
 export interface Settings {
   due_mode: DueMode;
+  /** За сколько минут до первой пары присылать погоду; 0 — не присылать. */
+  weather_lead: number;
 }
 
 /** Состояние диалога добавления дз (между нажатием «➕ дз» и выбором срока). */

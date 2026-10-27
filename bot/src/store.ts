@@ -1,13 +1,19 @@
 import type { Homework, LessonsPayload, Pending, Settings } from "./types";
+import type { Forecast } from "./weather";
 
 const KEYS = {
   lessons: "lessons",
   homework: "homework",
   settings: "settings",
   pending: "pending",
+  weather: "weather",
+  weatherSent: "weather_sent",
 } as const;
 
-const DEFAULT_SETTINGS: Settings = { due_mode: "ask" };
+/** Прогноз живёт в KV час, потом запрашивается заново. */
+const WEATHER_TTL_SECONDS = 60 * 60;
+
+const DEFAULT_SETTINGS: Settings = { due_mode: "ask", weather_lead: 60 };
 
 /** Обёртка над KV: один пользователь, поэтому каждая сущность — один JSON-ключ. */
 export class Store {
@@ -18,8 +24,25 @@ export class Store {
     return raw ? (JSON.parse(raw) as T) : null;
   }
 
-  private write(key: string, value: unknown): Promise<void> {
-    return this.kv.put(key, JSON.stringify(value));
+  private write(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+    return this.kv.put(key, JSON.stringify(value), ttlSeconds ? { expirationTtl: ttlSeconds } : undefined);
+  }
+
+  getWeather(): Promise<Forecast | null> {
+    return this.read<Forecast>(KEYS.weather);
+  }
+
+  putWeather(forecast: Forecast): Promise<void> {
+    return this.write(KEYS.weather, forecast, WEATHER_TTL_SECONDS);
+  }
+
+  /** Дата (YYYY-MM-DD), когда последний раз присылали погоду перед выходом. */
+  getWeatherSent(): Promise<string | null> {
+    return this.read<string>(KEYS.weatherSent);
+  }
+
+  putWeatherSent(date: string): Promise<void> {
+    return this.write(KEYS.weatherSent, date);
   }
 
   getLessons(): Promise<LessonsPayload | null> {

@@ -1,9 +1,12 @@
-import { Bot, InlineKeyboard, webhookCallback, type Context } from "grammy";
+import { Api, Bot, InlineKeyboard, webhookCallback, type Context } from "grammy";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
+import { lessonToWarnAbout, morningText, moscowNow } from "./morning";
 import { Store } from "./store";
 import {
   MAX_WEEK_OFFSET,
   MENU,
+  SETTINGS_TEXT,
+  WEATHER_LEADS,
   dayKeyboard,
   dayText,
   dottedDate,
@@ -15,14 +18,23 @@ import {
   mainMenu,
   settingsKeyboard,
   shortDate,
+  todaySummary,
+  weekDates,
   weekKeyboard,
   weekTitle,
 } from "./ui";
-import type { DueMode, Env, Homework, Lesson, LessonsPayload } from "./types";
+import { fetchForecast, weatherBadge, weatherLines, type Forecast } from "./weather";
+import type { DueMode, Env, Homework, Lesson, LessonsPayload, Settings } from "./types";
 
-/** Сегодняшняя дата по Москве (UTC+3, без перехода на зимнее время). */
-function todayMoscow(): string {
-  return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const todayMoscow = () => moscowNow().date;
+
+/** Прогноз из KV-кеша, при промахе — из Open-Meteo. null, если погода недоступна. */
+async function getForecast(store: Store, env: Env): Promise<Forecast | null> {
+  const cached = await store.getWeather();
+  if (cached) return cached;
+  const fresh = await fetchForecast(env.WEATHER_LAT, env.WEATHER_LON);
+  if (fresh) await store.putWeather(fresh);
+  return fresh;
 }
 
 function countBy<T>(items: T[], key: (item: T) => string): Map<string, number> {
@@ -69,12 +81,20 @@ function createBot(env: Env, store: Store): Bot {
       return;
     }
     const today = todayMoscow();
-    const homework = openHomework(await store.getHomework());
+    const [homework, forecast] = await Promise.all([store.getHomework().then(openHomework), getForecast(store, env)]);
+    const weather = new Map<string, string>();
+    for (const date of weekDates(today, offset)) {
+      const badge = forecast && weatherBadge(forecast, date);
+      if (badge) weather.set(date, badge);
+    }
     const keyboard = weekKeyboard(
       today,
       offset,
-      countBy(payload.lessons, (l) => l.date),
-      countBy(homework, (h) => h.due_date),
+      {
+        lessons: countBy(payload.lessons, (l) => l.date),
+        homework: countBy(homework, (h) => h.due_date),
+        weather,
+      },
       mode,
     );
     const title = mode === "due" ? `Выбери дату сдачи. ${weekTitle(today, offset)}` : weekTitle(today, offset);
@@ -88,7 +108,7 @@ function createBot(env: Env, store: Store): Bot {
 
   const showSettings = async (ctx: Context) => {
     const settings = await store.getSettings();
-    await ctx.reply("Срок дз по умолчанию:", { reply_markup: settingsKeyboard(settings.due_mode) });
+    await ctx.reply(SETTINGS_TEXT, { reply_markup: settingsKeyboard(settings), parse_mode: "HTML" });
   };
 
   /** Сохраняет дз из pending и сообщает, на какую дату поставлено. */
@@ -110,11 +130,19 @@ function createBot(env: Env, store: Store): Bot {
       .setMyCommands([
         { command: "week", description: "Расписание на эту неделю" },
         { command: "hw", description: "Мои дз" },
-        { command: "settings", description: "Настройки срока дз" },
+        { command: "settings", description: "Настройки: срок дз, погода перед выходом" },
         { command: "cancel", description: "Отменить ввод дз" },
       ])
       .catch(() => {});
-    await ctx.reply("Здарова! Меню внизу 👇", { reply_markup: mainMenu() });
+    // Меню-клавиатура должна быть прикреплена к сообщению — прикрепляем к сводке на сегодня.
+    const today = todayMoscow();
+    const [lessons, forecast] = await Promise.all([lessonsList(), getForecast(store, env)]);
+    const summary = todaySummary(
+      today,
+      lessons.filter((l) => l.date === today),
+      forecast && weatherBadge(forecast, today),
+    );
+    await ctx.reply(summary, { reply_markup: mainMenu() });
     await showWeek(ctx, 0);
   });
 
@@ -146,10 +174,11 @@ function createBot(env: Env, store: Store): Bot {
 
   bot.callbackQuery(/^d:(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
     const date = ctx.match[1];
-    const lessons = (await lessonsList()).filter((l) => l.date === date);
-    const homework = await store.getHomework();
+    const [all, homework, forecast] = await Promise.all([lessonsList(), store.getHomework(), getForecast(store, env)]);
+    const lessons = all.filter((l) => l.date === date);
+    const weather = forecast ? weatherLines(forecast, date, lessons) : [];
     await ctx.answerCallbackQuery();
-    await show(ctx, dayText(date, lessons, homework), dayKeyboard(todayMoscow(), date, lessons, homework));
+    await show(ctx, dayText(date, lessons, homework, weather), dayKeyboard(todayMoscow(), date, lessons, homework));
   });
 
   // --- Добавление дз ---
@@ -275,14 +304,42 @@ function createBot(env: Env, store: Store): Bot {
     await showHomeworkList(ctx);
   });
 
-  bot.callbackQuery(/^set:(ask|next|lecture)$/, async (ctx) => {
-    const due_mode = ctx.match[1] as DueMode;
-    await store.putSettings({ due_mode });
+  const updateSettings = async (ctx: Context, patch: Partial<Settings>) => {
+    const settings = { ...(await store.getSettings()), ...patch };
+    await store.putSettings(settings);
     await ctx.answerCallbackQuery({ text: "Сохранил" });
-    await ctx.editMessageReplyMarkup({ reply_markup: settingsKeyboard(due_mode) });
+    await ctx.editMessageReplyMarkup({ reply_markup: settingsKeyboard(settings) });
+  };
+
+  bot.callbackQuery(/^set:(ask|next|lecture)$/, (ctx) => updateSettings(ctx, { due_mode: ctx.match[1] as DueMode }));
+
+  bot.callbackQuery(/^wl:(\d+)$/, async (ctx) => {
+    const lead = Number(ctx.match[1]);
+    if (!WEATHER_LEADS.includes(lead)) return ctx.answerCallbackQuery();
+    await updateSettings(ctx, { weather_lead: lead });
   });
 
   return bot;
+}
+
+/** Cron: если до первой пары осталось не больше weather_lead минут — пишем погоду (раз в день). */
+async function sendMorningWeather(env: Env): Promise<void> {
+  const store = new Store(env.SCHEDULE);
+  const [payload, settings, lastSent] = await Promise.all([
+    store.getLessons(),
+    store.getSettings(),
+    store.getWeatherSent(),
+  ]);
+  const now = moscowNow();
+  const lessons = payload?.lessons ?? [];
+  const first = lessonToWarnAbout(now, lessons, settings.weather_lead, lastSent);
+  if (!first) return;
+
+  // Отмечаем заранее: при сбое отправки лучше пропустить утро, чем слать дубли каждые 5 минут.
+  await store.putWeatherSent(now.date);
+  const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
+  const text = morningText(first, lessons.filter((l) => l.date === now.date), forecast, homework);
+  await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, text, { parse_mode: "HTML" });
 }
 
 async function handlePush(request: Request, env: Env): Promise<Response> {
@@ -313,5 +370,9 @@ export default {
     }
 
     return new Response("not found", { status: 404 });
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(sendMorningWeather(env));
   },
 };

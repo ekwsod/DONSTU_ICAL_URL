@@ -63,21 +63,24 @@ describe("даты", () => {
 });
 
 describe("weekKeyboard", () => {
-  const lessons = new Map([
-    ["2026-10-28", 2],
-    ["2026-10-29", 1],
-    ["2026-10-30", 5],
-  ]);
-  const homework = new Map([["2026-10-29", 1]]);
+  const week = {
+    lessons: new Map([
+      ["2026-10-28", 2],
+      ["2026-10-29", 1],
+      ["2026-10-30", 5],
+    ]),
+    homework: new Map([["2026-10-29", 1]]),
+    weather: new Map([["2026-10-30", "☁️ +17°"]]),
+  };
 
-  it("по кнопке на день с числом пар и дз, пустое воскресенье скрыто", () => {
-    const rows = labels(weekKeyboard("2026-10-28", 0, lessons, homework));
+  it("по кнопке на день с числом пар, дз и погодой, пустое воскресенье скрыто", () => {
+    const rows = labels(weekKeyboard("2026-10-28", 0, week));
     expect(rows.slice(0, 6).map((r) => r[0])).toEqual([
       "Пн 26 окт · нет пар",
       "Вт 27 окт · нет пар",
       "• Ср 28 окт · 2 пары",
       "Чт 29 окт · 1 пара · 📝1",
-      "Пт 30 окт · 5 пар",
+      "Пт 30 окт · 5 пар · ☁️ +17°",
       "Сб 31 окт · нет пар",
     ]);
     expect(rows[6]).toEqual(["Следующая ▶"]);
@@ -85,11 +88,11 @@ describe("weekKeyboard", () => {
   });
 
   it("на следующей неделе можно вернуться назад", () => {
-    expect(labels(weekKeyboard("2026-10-28", 1, lessons, homework)).at(-1)).toEqual(["◀ Эта неделя", "Дальше ▶"]);
+    expect(labels(weekKeyboard("2026-10-28", 1, week)).at(-1)).toEqual(["◀ Эта неделя", "Дальше ▶"]);
   });
 
   it("в режиме выбора срока кнопки ведут на dd: и dw:, есть отмена", () => {
-    const callbacks = data(weekKeyboard("2026-10-28", 0, lessons, homework, "due"));
+    const callbacks = data(weekKeyboard("2026-10-28", 0, week, "due"));
     expect(callbacks[0]).toBe("dd:2026-10-26");
     expect(callbacks).toContain("dw:1");
     expect(callbacks.at(-1)).toBe("due:cancel");
