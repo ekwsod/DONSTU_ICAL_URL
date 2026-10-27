@@ -18,3 +18,7 @@ public/
 # Системные файлы
 .DS_Store
 Thumbs.db
+
+# Node.js и Wrangler (основная копия правил — в bot/.gitignore)
+node_modules/
+.wrangler/

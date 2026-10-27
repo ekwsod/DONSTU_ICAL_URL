@@ -1,7 +1,11 @@
 {
   "name": "donstu-bot",
+  "description": "Telegram-бот с расписанием ДГТУ и домашними заданиями на Cloudflare Workers",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
