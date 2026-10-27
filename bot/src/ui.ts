@@ -93,12 +93,12 @@ export function weekTitle(today: string, offset: number): string {
   return `${name}: ${range(days[0])} – ${range(days[6])}`;
 }
 
-/** Однострочная сводка на сегодня: «📅 Сегодня, 28 октября: 2 пары, первая в 08:30 (ауд. 1-483) · ☁️ +17°». */
+/** Однострочная сводка на сегодня: «📅 Сегодня, 28 октября: 2 пары, первая в 08:30 · ☁️ +17°». */
 export function todaySummary(today: string, lessons: Lesson[], weather: string | null): string {
   const d = parse(today);
   const head = `📅 Сегодня, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
   const first = [...lessons].sort((a, b) => a.start.localeCompare(b.start))[0];
-  const body = first ? `${pairs(lessons.length)}, первая в ${first.start}${roomSuffix(first.room)}` : "пар нет 🎉";
+  const body = first ? `${pairs(lessons.length)}, первая в ${first.start}` : "пар нет 🎉";
   return `${head}: ${body}${weather ? ` · ${weather}` : ""}`;
 }
 
@@ -187,12 +187,6 @@ export const PAIR_NUMBERS: Record<string, number> = {
 export function formatRoom(room: string): string {
   const match = room.match(/^(\d+)-(.+)$/);
   return match ? `корпус ${match[1]}, ауд. ${match[2]}` : room;
-}
-
-/** « (ауд. 1-111)» для заголовков: номер — с «ауд.», «манеж» — как есть, без аудитории — пусто. */
-export function roomSuffix(room: string | null): string {
-  if (!room) return "";
-  return ` (${/^\d+-/.test(room) ? `ауд. ${room}` : room})`;
 }
 
 export function escapeHtml(text: string): string {
