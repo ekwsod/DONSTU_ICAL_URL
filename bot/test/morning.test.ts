@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, reminderText } from "../src/morning";
+import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, nextStudyDate, reminderText } from "../src/morning";
 import { parseForecast } from "../src/weather";
 import { settingsKeyboard, todaySummary } from "../src/ui";
 import type { Homework, Lesson } from "../src/types";
@@ -148,6 +148,15 @@ describe("settingsKeyboard", () => {
     expect(labels[1]).toEqual(["✅ Всегда к следующей паре"]);
     expect(labels[3]).toEqual(["🌤", "Выкл", "30м", "✅ 45м", "60м", "90м"]);
     expect(labels[4]).toEqual(["🔔", "✅ Выкл", "18:00", "20:00", "22:00"]);
+    expect(labels[5]).toEqual(["👀 Пример плана перед выходом"]);
+  });
+});
+
+describe("nextStudyDate", () => {
+  it("сегодня, если есть пары, иначе ближайший следующий день с парами", () => {
+    expect(nextStudyDate(lessons, "2026-10-28")).toBe("2026-10-28");
+    expect(nextStudyDate(lessons, "2026-10-29")).toBe("2026-10-29");
+    expect(nextStudyDate(lessons, "2026-10-30")).toBeNull();
   });
 });
 

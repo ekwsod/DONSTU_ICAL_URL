@@ -357,5 +357,6 @@ export function settingsKeyboard(current: Settings): InlineKeyboard {
   for (const hour of REMIND_HOURS) {
     kb.text(`${mark(hour === current.hw_remind_hour)}${hour === 0 ? "Выкл" : `${hour}:00`}`, `hr:${hour}`);
   }
+  kb.row().text("👀 Пример плана перед выходом", "pv");
   return kb;
 }

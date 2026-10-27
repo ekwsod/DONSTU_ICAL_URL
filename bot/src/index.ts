@@ -10,7 +10,7 @@ import {
   type HomeworkDraft,
 } from "./ai";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
-import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, reminderText } from "./morning";
+import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, nextStudyDate, reminderText } from "./morning";
 import { Store } from "./store";
 import {
   MAX_WEEK_OFFSET,
@@ -30,6 +30,7 @@ import {
   homeworkCardText,
   homeworkKeyboard,
   homeworkText,
+  longDate,
   mainMenu,
   settingsKeyboard,
   shiftDate,
@@ -166,6 +167,7 @@ function createBot(env: Env, store: Store): Bot {
         { command: "week", description: "Выбрать неделю" },
         { command: "hw", description: "Мои дз" },
         { command: "new", description: "Записать дз своими словами" },
+        { command: "plan", description: "Пример плана перед выходом" },
         { command: "settings", description: "Настройки: срок дз, погода, напоминания" },
         { command: "cancel", description: "Отменить ввод дз" },
       ])
@@ -213,6 +215,25 @@ function createBot(env: Env, store: Store): Bot {
     await askNewHomework(ctx);
   });
   bot.command("settings", menu(showSettings));
+
+  // Пример плана перед выходом — на ближайший день с парами. Утреннюю отправку не трогает.
+  const previewPlan = async (ctx: Context) => {
+    const lessons = await lessonsList();
+    const date = nextStudyDate(lessons, todayMoscow());
+    if (!date) {
+      await ctx.reply("В расписании пока нет пар — показать нечего.");
+      return;
+    }
+    await ctx.replyWithChatAction("typing").catch(() => {});
+    const plan = await buildPlan(env, store, lessons, date);
+    const note = `<i>Пример: так придёт перед выходом (${longDate(date)})</i>`;
+    if (plan) await ctx.reply(`${note}\n\n${plan}`, { parse_mode: "HTML" });
+  };
+  bot.command("plan", menu(previewPlan));
+  bot.callbackQuery("pv", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await previewPlan(ctx);
+  });
   bot.hears(MENU.settings, menu(showSettings));
 
   bot.command("cancel", async (ctx) => {
@@ -487,6 +508,17 @@ function createBot(env: Env, store: Store): Bot {
 }
 
 /** Cron: если до первой пары осталось не больше weather_lead минут — пишем погоду (раз в день). */
+/** План дня перед выходом (тот же, что шлёт cron): погода, пары, окна, дз и совет от ИИ. null — в этот день пар нет. */
+async function buildPlan(env: Env, store: Store, lessons: Lesson[], date: string): Promise<string | null> {
+  const day = lessons.filter((l) => l.date === date).sort((a, b) => a.start.localeCompare(b.start));
+  if (day.length === 0) return null;
+  const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
+  const due = homework.filter((h) => !h.done && h.due_date === date);
+  // Без ИИ план всё равно уйдёт — просто без строки 💬.
+  const comment = await planComment(workersAiRunner(env.AI), day, forecast && dayWeather(forecast, date, day), due);
+  return morningText(day[0], day, forecast, homework, comment);
+}
+
 async function sendMorningWeather(env: Env): Promise<void> {
   const store = new Store(env.SCHEDULE);
   const [payload, settings, lastSent] = await Promise.all([
@@ -501,13 +533,8 @@ async function sendMorningWeather(env: Env): Promise<void> {
 
   // Отмечаем заранее: при сбое отправки лучше пропустить утро, чем слать дубли каждые 5 минут.
   await store.putWeatherSent(now.date);
-  const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
-  const today = lessons.filter((l) => l.date === now.date);
-  const due = homework.filter((h) => !h.done && h.due_date === now.date);
-  // Без ИИ план всё равно уйдёт — просто без строки 💬.
-  const comment = await planComment(workersAiRunner(env.AI), today, forecast && dayWeather(forecast, now.date, today), due);
-  const text = morningText(first, today, forecast, homework, comment);
-  await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, text, { parse_mode: "HTML" });
+  const text = await buildPlan(env, store, lessons, first.date);
+  if (text) await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, text, { parse_mode: "HTML" });
 }
 
 /** Cron: накануне срока, в выбранный час, напоминаем о дз на завтра (раз в день). */

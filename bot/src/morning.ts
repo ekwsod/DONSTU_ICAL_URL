@@ -32,6 +32,11 @@ export function lessonToWarnAbout(
   return current >= start - leadMinutes && current < start ? first : null;
 }
 
+/** Ближайший день с парами, начиная с сегодняшнего; null — пар в расписании нет. */
+export function nextStudyDate(lessons: Lesson[], today: string): string | null {
+  return lessons.map((l) => l.date).filter((d) => d >= today).sort()[0] ?? null;
+}
+
 /** Окно напоминания о дз: с выбранного часа и ещё два часа, на случай пропущенных тиков cron. */
 const REMIND_WINDOW_MINUTES = 120;
 
