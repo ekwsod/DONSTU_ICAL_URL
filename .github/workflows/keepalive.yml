@@ -1,16 +1,29 @@
 name: Keepalive Workflow
 
+# GitHub отключает запуск по расписанию, если в публичном репозитории 60 дней
+# не было активности. Раз в месяц заново включаем schedule.yml и этот workflow
+# через REST API — без коммитов и сторонних actions.
+
 on:
   schedule:
+    # 1-е число каждого месяца, 00:00 UTC
     - cron: '0 0 1 * *'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  actions: write
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: gautamkrishnar/keepalive-workflow@v2
+      - name: Re-enable scheduled workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          for wf in schedule.yml keepalive.yml; do
+            gh api -X PUT "repos/$REPO/actions/workflows/$wf/enable"
+            state=$(gh api "repos/$REPO/actions/workflows/$wf" --jq .state)
+            echo "$wf: $state"
+          done
