@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -30,6 +31,7 @@ class Config:
     slots: list[str] = None
     timezone_name: str = "Europe/Moscow"
     exclude_keywords: list[str] = None
+    lessons_horizon_days: int = 28
 
     def __post_init__(self):
         if self.slots is None:
@@ -71,6 +73,7 @@ class Config:
                 slots=list(data.get("slots", ["07:00", "08:45", "10:00"])),
                 timezone_name=str(data.get("timezone", "Europe/Moscow")),
                 exclude_keywords=list(exclude_kw),
+                lessons_horizon_days=int(data.get("lessons_horizon_days", 28)),
             )
         except Exception:
             # При любой ошибке парсинга конфига возвращаем стандартные значения
@@ -261,7 +264,7 @@ def sanitize_title(summary: str) -> str | None:
     text = re.sub(r"\b[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]?\.?", "", text)
 
     # Удаляем названия академических групп и префиксы групп (например: БВТ2101, ИСТ-31, гр. 101)
-    text = re.sub(r"\b(?:гр\.?|групп[аы])\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:гр\.?(?=\s|\d|$)|групп[аы](?=\s|\d|$))\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\b[А-Яа-яA-Za-z]{2,5}-?\d{2,4}\b", "", text)
 
     # Очищаем лишние разделители в начале и конце
@@ -347,6 +350,102 @@ def calculate_day_schedule(events: list[ICalEvent], target_date: date, config: C
         "warning": warning,
         "notification": notification,
     }
+
+
+def classify_lesson_type(summary: str) -> str:
+    """
+    Определение типа пары по названию: lecture / practice / lab / other.
+    Сокращения из расписания ДГТУ: «Лек.», «Пр.», «Лаб.» и их полные формы.
+    """
+    summary_lower = summary.lower()
+    if re.search(r"\bлек(?:ция|\.|\s|$)", summary_lower):
+        return "lecture"
+    if re.search(r"\bпр(?:\.|\s|$)|практик", summary_lower):
+        return "practice"
+    if re.search(r"\bлаб(?:\.|\s|$)|лабораторн", summary_lower):
+        return "lab"
+    return "other"
+
+
+def lesson_title(summary: str) -> str | None:
+    """Название предмета без пометки типа пары («Лек.», «Пр.», «Лаб.») и без персональных данных."""
+    title = sanitize_title(summary)
+    if not title:
+        return None
+    title = re.sub(r"^(?:лек(?:ция)?|пр(?:актика)?|лаб(?:ораторная)?)\.?(?=\s|$)\s*", "", title, flags=re.IGNORECASE)
+    return title.strip() or None
+
+
+def make_subject_key(title: str | None) -> str | None:
+    """Ключ предмета для связи лекции и практики: нижний регистр, без знаков препинания и лишних пробелов."""
+    if not title:
+        return None
+    key = re.sub(r"[^\w\s]", "", title.lower())
+    key = re.sub(r"\s+", " ", key).strip()
+    return key or None
+
+
+def make_lesson_id(uid: str, dtstart: datetime) -> str:
+    """Стабильный идентификатор пары: uid события и время начала."""
+    raw = f"{uid}|{dtstart.isoformat()}".encode("utf-8")
+    return hashlib.sha1(raw).hexdigest()[:16]
+
+
+def build_lessons_payload(events: list[ICalEvent], start_date: date, days: int, config: Config) -> dict:
+    """
+    Список пар на окно дат [start_date, start_date + days) для Telegram-бота.
+    Фильтрация по подгруппе и исключениям та же, что и для будильника.
+    Персональные данные (ФИО, группы) очищаются через sanitize_title.
+    """
+    end_date = start_date + timedelta(days=days)
+    lessons = []
+
+    for event in events:
+        event_date = event.dtstart.date()
+        if not (start_date <= event_date < end_date):
+            continue
+        if not is_user_event(event, config.subgroup, config.exclude_keywords):
+            continue
+
+        title = lesson_title(event.summary)
+        lessons.append({
+            "id": make_lesson_id(event.uid, event.dtstart),
+            "date": event_date.isoformat(),
+            "start": f"{event.dtstart.hour:02d}:{event.dtstart.minute:02d}",
+            "end": f"{event.dtend.hour:02d}:{event.dtend.minute:02d}" if event.dtend else None,
+            "title": title,
+            "subject_key": make_subject_key(title),
+            "type": classify_lesson_type(event.summary),
+            "room": sanitize_room(event.location),
+        })
+
+    lessons.sort(key=lambda lesson: (lesson["date"], lesson["start"]))
+
+    return {
+        "generated_at": datetime.now(ZoneInfo(config.timezone_name)).isoformat(),
+        "from": start_date.isoformat(),
+        "to": (end_date - timedelta(days=1)).isoformat(),
+        "lessons": lessons,
+    }
+
+
+def push_to_worker(payload: dict, url: str, token: str, timeout: int = 30) -> None:
+    """
+    Отправка списка пар в Worker бота (POST JSON с Bearer-токеном).
+    Адрес и токен НИКОГДА не выводятся в логи или исключения.
+    """
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout):
+        pass
 
 
 def fetch_ical_content(url: str, timeout: int = 30, retries: int = 3, backoff_seconds: float = 2.0) -> str:
@@ -481,6 +580,16 @@ def main() -> None:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
     print(f"[OK] Файл расписания успешно сохранён: {output_path}")
+
+    # 7. Отправка пар боту (только если задан адрес Worker; ошибка не отменяет будильники)
+    push_url = os.environ.get("BOT_PUSH_URL", "").strip()
+    if push_url:
+        lessons = build_lessons_payload(events, today_date, config.lessons_horizon_days, config)
+        try:
+            push_to_worker(lessons, push_url, os.environ.get("BOT_PUSH_TOKEN", "").strip())
+            print(f"[OK] Пары отправлены боту: {len(lessons['lessons'])} шт. на {config.lessons_horizon_days} дн.")
+        except Exception as e:
+            print(f"[ПРЕДУПРЕЖДЕНИЕ] Не удалось отправить пары боту: {type(e).__name__}", file=sys.stderr)
 
 
 if __name__ == "__main__":

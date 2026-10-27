@@ -36,6 +36,8 @@ jobs:
       - name: Fetch schedule and generate JSON
         env:
           DONSTU_ICAL_URL: ${{ secrets.DONSTU_ICAL_URL }}
+          BOT_PUSH_URL: ${{ secrets.BOT_PUSH_URL }}
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
         run: |
           python schedule_alarm.py
 
