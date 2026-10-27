@@ -104,14 +104,16 @@ export function todaySummary(today: string, lessons: Lesson[], weather: string |
   return `${head}: ${body}${weather ? ` · ${weather}` : ""}`;
 }
 
-/** Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — недели, запись дз и настройки. */
+/**
+ * Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — запись дз и настройки.
+ * Недели открываются из экрана дня («К неделе»), поэтому в меню их нет.
+ */
 export function mainMenu(): Keyboard {
   return new Keyboard()
     .text(MENU.today)
     .text(MENU.homework)
     .text(MENU.tomorrow)
     .row()
-    .text(MENU.weeks)
     .text(MENU.newHomework)
     .text(MENU.settings)
     .resized()
