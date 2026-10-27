@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildWeekKeyboard, dayText, longDate, shiftDate } from "../src/ui";
+import {
+  dayKeyboard,
+  dayText,
+  escapeHtml,
+  longDate,
+  mondayOf,
+  shiftDate,
+  weekKeyboard,
+  weekOffsetOf,
+  weekTitle,
+} from "../src/ui";
 import type { Homework, Lesson } from "../src/types";
 
 const lesson: Lesson = {
@@ -25,6 +35,10 @@ const hw = (over: Partial<Homework>): Homework => ({
   ...over,
 });
 
+const labels = (kb: { inline_keyboard: { text: string }[][] }) => kb.inline_keyboard.map((row) => row.map((b) => b.text));
+const data = (kb: { inline_keyboard: object[][] }) =>
+  kb.inline_keyboard.flat().map((b) => (b as { callback_data: string }).callback_data);
+
 describe("даты", () => {
   it("сдвиг работает в обе стороны через границу месяца", () => {
     expect(shiftDate("2026-11-01", -1)).toBe("2026-10-31");
@@ -34,36 +48,94 @@ describe("даты", () => {
   it("длинная дата по-русски", () => {
     expect(longDate("2026-11-02")).toBe("2 ноября, понедельник");
   });
+
+  it("понедельник недели и номер недели относительно сегодня", () => {
+    expect(mondayOf("2026-10-28")).toBe("2026-10-26"); // среда → понедельник
+    expect(mondayOf("2026-11-01")).toBe("2026-10-26"); // воскресенье той же недели
+    expect(weekOffsetOf("2026-10-28", "2026-11-01")).toBe(0);
+    expect(weekOffsetOf("2026-10-28", "2026-11-02")).toBe(1);
+  });
+
+  it("заголовок недели", () => {
+    expect(weekTitle("2026-10-28", 0)).toBe("Эта неделя: 26 окт – 1 ноя");
+    expect(weekTitle("2026-10-28", 1)).toBe("Следующая неделя: 2 ноя – 8 ноя");
+  });
 });
 
-describe("buildWeekKeyboard", () => {
-  it("две строки по 7 кнопок с пометками сегодня, без пар и дз", () => {
-    const kb = buildWeekKeyboard("2026-10-28", new Set(["2026-10-29"]), new Set(["2026-10-30"]), "dd");
-    const rows = kb.inline_keyboard.filter((r) => r.length > 0);
-    expect(rows.map((r) => r.length)).toEqual([7, 7]);
-    const [today, withLessons, withHw, empty] = rows[0];
-    expect(today.text).toBe("•Ср 28");
-    expect(withLessons.text).toBe("Чт 29");
-    expect(withHw.text).toBe("📌Пт 30");
-    expect(empty.text).toBe("·Сб 31");
-    expect((today as { callback_data: string }).callback_data).toBe("dd:2026-10-28");
+describe("weekKeyboard", () => {
+  const lessons = new Map([
+    ["2026-10-28", 2],
+    ["2026-10-29", 1],
+    ["2026-10-30", 5],
+  ]);
+  const homework = new Map([["2026-10-29", 1]]);
+
+  it("по кнопке на день с числом пар и дз, пустое воскресенье скрыто", () => {
+    const rows = labels(weekKeyboard("2026-10-28", 0, lessons, homework));
+    expect(rows.slice(0, 6).map((r) => r[0])).toEqual([
+      "Пн 26 окт · нет пар",
+      "Вт 27 окт · нет пар",
+      "• Ср 28 окт · 2 пары",
+      "Чт 29 окт · 1 пара · 📝1",
+      "Пт 30 окт · 5 пар",
+      "Сб 31 окт · нет пар",
+    ]);
+    expect(rows[6]).toEqual(["Следующая ▶"]);
+    expect(rows).toHaveLength(7);
+  });
+
+  it("на следующей неделе можно вернуться назад", () => {
+    expect(labels(weekKeyboard("2026-10-28", 1, lessons, homework)).at(-1)).toEqual(["◀ Эта неделя", "Дальше ▶"]);
+  });
+
+  it("в режиме выбора срока кнопки ведут на dd: и dw:, есть отмена", () => {
+    const callbacks = data(weekKeyboard("2026-10-28", 0, lessons, homework, "due"));
+    expect(callbacks[0]).toBe("dd:2026-10-26");
+    expect(callbacks).toContain("dw:1");
+    expect(callbacks.at(-1)).toBe("due:cancel");
   });
 });
 
 describe("dayText", () => {
-  it("показывает пару и дз под ней, остальные дз дня — отдельно", () => {
+  it("каждая пара — блок с номером, временем и предметом жирным", () => {
     const text = dayText("2026-11-02", [lesson], [
       hw({ id: "1", text: "задачи 1-5" }),
       hw({ id: "2", text: "эссе", title: "Философия", due_lesson_id: null }),
       hw({ id: "3", text: "сдано", done: true }),
     ]);
-    expect(text).toContain("08:30–10:00 Математика (лекция, ауд. 1-234)");
-    expect(text).toContain("   📝 задачи 1-5");
-    expect(text).toContain("Дз на этот день:\n📝 Философия: эссе");
-    expect(text).not.toContain("сдано");
+    expect(text).toBe(
+      [
+        "🗓 <b>2 ноября, понедельник</b>",
+        "",
+        "<b>1 пара · 08:30–10:00</b>",
+        "📘 <b>Математика</b>",
+        "<i>лекция · ауд. 1-234</i>",
+        "📝 задачи 1-5",
+        "",
+        "<b>Дз на этот день</b>",
+        "📝 Философия: эссе",
+      ].join("\n"),
+    );
+  });
+
+  it("экранирует HTML в тексте дз", () => {
+    expect(dayText("2026-11-02", [lesson], [hw({ text: "a < b & c" })])).toContain("📝 a &lt; b &amp; c");
+    expect(escapeHtml("<b>")).toBe("&lt;b&gt;");
   });
 
   it("пишет, что пар нет", () => {
     expect(dayText("2026-11-01", [], [])).toContain("Пар нет");
+  });
+});
+
+describe("dayKeyboard", () => {
+  it("кнопки «➕ дз» по номеру пары, дз дня и возврат к нужной неделе", () => {
+    const kb = dayKeyboard("2026-10-28", "2026-11-02", [lesson], [hw({ id: "1", text: "задачи" })]);
+    expect(labels(kb)).toEqual([
+      ["➕ дз · 1 пара · Математика"],
+      ["📝 Математика: задачи"],
+      ["◀", "К неделе", "▶"],
+    ]);
+    expect(data(kb)).toEqual(["a:L1", "h:1", "d:2026-11-01", "w:1", "d:2026-11-03"]);
   });
 });

@@ -1,11 +1,22 @@
-import { InlineKeyboard } from "grammy";
-import { dayWindow } from "./schedule";
+import { InlineKeyboard, Keyboard } from "grammy";
 import type { DueOption } from "./homework";
 import type { DueMode, Homework, Lesson, LessonType } from "./types";
 
 const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 const WEEKDAYS_FULL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+/** Сколько недель вперёд можно листать: пары приходят на 28 дней. */
+export const MAX_WEEK_OFFSET = 3;
+
+/** Тексты кнопок постоянного меню — по ним же бот ловит нажатия. */
+export const MENU = {
+  thisWeek: "📅 Эта неделя",
+  nextWeek: "📅 Следующая",
+  homework: "📝 Мои дз",
+  settings: "⚙️ Настройки",
+} as const;
 
 const TYPE_LABELS: Record<LessonType, string> = {
   lecture: "лекция",
@@ -22,7 +33,7 @@ const MODE_LABELS: Record<DueMode, string> = {
 
 const parse = (date: string) => new Date(`${date}T00:00:00Z`);
 
-/** «Пн 2» — для кнопок. */
+/** «Пн 2» — для коротких подписей. */
 export function shortDate(date: string): string {
   const d = parse(date);
   return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()}`;
@@ -45,68 +56,154 @@ export function shiftDate(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Понедельник недели, в которую попадает дата. */
+export function mondayOf(date: string): string {
+  const weekday = (parse(date).getUTCDay() + 6) % 7; // Пн = 0
+  return shiftDate(date, -weekday);
+}
+
+/** Номер недели относительно текущей: 0 — эта, 1 — следующая. */
+export function weekOffsetOf(today: string, date: string): number {
+  const diff = parse(mondayOf(date)).getTime() - parse(mondayOf(today)).getTime();
+  return Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+}
+
+export function weekDates(today: string, offset: number): string[] {
+  const monday = shiftDate(mondayOf(today), offset * 7);
+  return Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+}
+
+const pairs = (n: number) => {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} пара`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} пары`;
+  return `${n} пар`;
+};
+
+export function weekTitle(today: string, offset: number): string {
+  const days = weekDates(today, offset);
+  const name = offset === 0 ? "Эта неделя" : offset === 1 ? "Следующая неделя" : `Через ${offset} нед.`;
+  const range = (date: string) => `${parse(date).getUTCDate()} ${MONTHS_SHORT[parse(date).getUTCMonth()]}`;
+  return `${name}: ${range(days[0])} – ${range(days[6])}`;
+}
+
+export function mainMenu(): Keyboard {
+  return new Keyboard()
+    .text(MENU.thisWeek)
+    .text(MENU.nextWeek)
+    .row()
+    .text(MENU.homework)
+    .text(MENU.settings)
+    .resized()
+    .persistent();
+}
+
 /**
- * Inline-клавиатура на 14 дней: две строки по семь.
- * Сегодня — «•», день без пар — «·», день со сроком дз — «📌».
- * `prefix` задаёт действие: «d» открыть день, «dd» выбрать дату срока.
+ * Неделя: по кнопке на день с числом пар и дз, внизу переключение недель.
+ * mode «view» открывает день, «due» выбирает дату срока дз.
+ * Воскресенье без пар и дз скрыто, чтобы не занимать место.
  */
-export function buildWeekKeyboard(
+export function weekKeyboard(
   today: string,
-  lessonDates: Set<string>,
-  homeworkDates: Set<string> = new Set(),
-  prefix = "d",
+  offset: number,
+  lessonCounts: Map<string, number>,
+  homeworkCounts: Map<string, number>,
+  mode: "view" | "due" = "view",
 ): InlineKeyboard {
   const kb = new InlineKeyboard();
-  const days = dayWindow(today, 14);
+  const [dayAction, weekAction] = mode === "view" ? ["d", "w"] : ["dd", "dw"];
 
-  days.forEach((date, i) => {
-    let mark = date === today ? "•" : lessonDates.has(date) ? "" : "·";
-    if (homeworkDates.has(date)) mark = "📌";
-    kb.text(`${mark}${shortDate(date)}`, `${prefix}:${date}`);
-    if (i % 7 === 6) kb.row();
-  });
+  for (const date of weekDates(today, offset)) {
+    const lessons = lessonCounts.get(date) ?? 0;
+    const homework = homeworkCounts.get(date) ?? 0;
+    if (parse(date).getUTCDay() === 0 && lessons === 0 && homework === 0) continue;
 
+    const parts = [`${date === today ? "• " : ""}${shortDate(date)} ${MONTHS_SHORT[parse(date).getUTCMonth()]}`];
+    parts.push(lessons > 0 ? pairs(lessons) : "нет пар");
+    if (homework > 0) parts.push(`📝${homework}`);
+    kb.text(parts.join(" · "), `${dayAction}:${date}`).row();
+  }
+
+  if (offset > 0) kb.text(offset === 1 ? "◀ Эта неделя" : "◀ Раньше", `${weekAction}:${offset - 1}`);
+  if (offset < MAX_WEEK_OFFSET) kb.text(offset === 0 ? "Следующая ▶" : "Дальше ▶", `${weekAction}:${offset + 1}`);
+  if (mode === "due") kb.row().text("Отмена", "due:cancel");
   return kb;
 }
 
-function lessonLine(lesson: Lesson): string {
-  const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
-  const type = TYPE_LABELS[lesson.type];
-  const extra = [type, lesson.room ? `ауд. ${lesson.room}` : ""].filter(Boolean).join(", ");
-  return `${time} ${lesson.title}${extra ? ` (${extra})` : ""}`;
+const TYPE_ICONS: Record<LessonType, string> = {
+  lecture: "📘",
+  practice: "✏️",
+  lab: "🧪",
+  other: "📌",
+};
+
+/** Начала пар в ДГТУ → номер пары. */
+const PAIR_NUMBERS: Record<string, number> = {
+  "08:30": 1,
+  "10:15": 2,
+  "12:00": 3,
+  "14:15": 4,
+  "16:00": 5,
+  "17:45": 6,
+  "19:30": 7,
+};
+
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Текст дня: пары по порядку и дз, срок которых приходится на эту пару или день. */
+function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
+  const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
+  const number = PAIR_NUMBERS[lesson.start];
+  const details = [TYPE_LABELS[lesson.type], lesson.room ? `ауд. ${lesson.room}` : ""].filter(Boolean).join(" · ");
+
+  const lines = [
+    `<b>${number ? `${number} пара · ` : ""}${time}</b>`,
+    `${TYPE_ICONS[lesson.type]} <b>${escapeHtml(lesson.title)}</b>`,
+  ];
+  if (details) lines.push(`<i>${escapeHtml(details)}</i>`);
+  for (const h of homework) lines.push(`📝 ${escapeHtml(h.text)}`);
+  return lines;
+}
+
+/**
+ * Текст дня (HTML): каждая пара — отдельный блок через пустую строку,
+ * время и предмет жирным, под парой — дз со сроком на неё.
+ */
 export function dayText(date: string, lessons: Lesson[], homework: Homework[]): string {
-  const lines = [longDate(date), ""];
+  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`]];
   const due = homework.filter((h) => !h.done && h.due_date === date);
 
   if (lessons.length === 0) {
-    lines.push("Пар нет 🎉");
+    blocks.push(["Пар нет 🎉"]);
   }
   for (const lesson of lessons) {
-    lines.push(lessonLine(lesson));
-    for (const h of due.filter((h) => h.due_lesson_id === lesson.id)) {
-      lines.push(`   📝 ${h.text}`);
-    }
+    blocks.push(lessonBlock(lesson, due.filter((h) => h.due_lesson_id === lesson.id)));
   }
 
   const loose = due.filter((h) => !lessons.some((l) => l.id === h.due_lesson_id));
   if (loose.length > 0) {
-    lines.push("", "Дз на этот день:");
-    for (const h of loose) lines.push(`📝 ${h.title}: ${h.text}`);
+    blocks.push([
+      "<b>Дз на этот день</b>",
+      ...loose.map((h) => `📝 ${escapeHtml(h.title)}: ${escapeHtml(h.text)}`),
+    ]);
   }
 
-  return lines.join("\n");
+  return blocks.map((b) => b.join("\n")).join("\n\n");
 }
 
-export function dayKeyboard(date: string, lessons: Lesson[]): InlineKeyboard {
+export function dayKeyboard(today: string, date: string, lessons: Lesson[], homework: Homework[]): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const lesson of lessons) {
-    kb.text(`➕ дз · ${lesson.start} ${lesson.title}`, `a:${lesson.id}`).row();
+    const number = PAIR_NUMBERS[lesson.start];
+    kb.text(`➕ дз · ${number ? `${number} пара` : lesson.start} · ${lesson.title}`, `a:${lesson.id}`).row();
+  }
+  for (const h of homework.filter((h) => !h.done && h.due_date === date)) {
+    kb.text(`📝 ${h.title}: ${h.text}`, `h:${h.id}`).row();
   }
   kb.text("◀", `d:${shiftDate(date, -1)}`)
-    .text("К неделям", "w")
+    .text("К неделе", `w:${Math.max(0, weekOffsetOf(today, date))}`)
     .text("▶", `d:${shiftDate(date, 1)}`);
   return kb;
 }
@@ -118,25 +215,39 @@ export function dueKeyboard(options: DueOption[]): InlineKeyboard {
     const label = o.kind === "next" ? "К следующей паре" : "К следующей лекции";
     kb.text(`${label} (${shortDate(o.lesson.date)}, ${o.lesson.start})`, `due:${o.kind}`).row();
   }
-  kb.text("Другая дата", "due:other").row();
+  kb.text("Другая дата", "dw:0").row();
   kb.text("Отмена", "due:cancel");
   return kb;
 }
 
 export function homeworkText(list: Homework[]): string {
   if (list.length === 0) return "Открытых дз нет 🙌";
-  return [
-    "Открытые дз:",
-    ...list.map((h, i) => `${i + 1}. до ${dottedDate(h.due_date)} — ${h.title}: ${h.text}`),
-  ].join("\n");
+  return "Открытые дз — нажми, чтобы открыть:";
 }
 
+/** Список дз: каждое — кнопка, открывающая карточку. */
 export function homeworkKeyboard(list: Homework[]): InlineKeyboard {
   const kb = new InlineKeyboard();
-  list.forEach((h, i) => {
-    kb.text(`✔ ${i + 1}`, `done:${h.id}`).text(`🗑 ${i + 1}`, `del:${h.id}`).row();
-  });
+  for (const h of list) {
+    kb.text(`до ${shortDate(h.due_date)} · ${h.title}: ${h.text}`, `h:${h.id}`).row();
+  }
   return kb;
+}
+
+export function homeworkCardText(h: Homework, dueLesson: Lesson | null): string {
+  const when = dueLesson ? `${longDate(h.due_date)}, ${dueLesson.start}` : longDate(h.due_date);
+  const lines = [`📝 <b>${escapeHtml(h.title)}</b>`, "", escapeHtml(h.text), "", `<i>Срок: ${when}</i>`];
+  if (h.done) lines.push("Сделано ✔");
+  return lines.join("\n");
+}
+
+export function homeworkCardKeyboard(h: Homework): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✔ Сделано", `done:${h.id}`)
+    .text("🗑 Удалить", `del:${h.id}`)
+    .row()
+    .text("📅 День сдачи", `d:${h.due_date}`)
+    .text("◀ Все дз", "hl");
 }
 
 export function settingsKeyboard(current: DueMode): InlineKeyboard {
