@@ -3,6 +3,7 @@ import {
   dayKeyboard,
   dayText,
   escapeHtml,
+  homeworkKeyboard,
   mainMenu,
   longDate,
   mondayOf,
@@ -107,9 +108,16 @@ describe("weekKeyboard", () => {
 describe("меню и выбор недели", () => {
   it("в меню сначала дни, потом недели, дз и настройки", () => {
     expect(mainMenu().keyboard.map((row) => row.map((b) => (typeof b === "string" ? b : b.text)))).toEqual([
-      ["📍 Сегодня", "➡️ Завтра"],
-      ["🗓 Недели", "📝 Мои дз", "⚙️"],
+      ["📍 Сегодня", "➡️ Завтра", "🗓 Недели"],
+      ["✍️ Записать дз", "📝 Мои дз", "⚙️"],
     ]);
+  });
+
+  it("в списке дз — кнопка записи нового, в напоминании её нет", () => {
+    const list = [hw({ id: "1", text: "задачи" })];
+    expect(data(homeworkKeyboard(list, true))).toEqual(["h:1", "qn"]);
+    expect(data(homeworkKeyboard(list))).toEqual(["h:1"]);
+    expect(data(homeworkKeyboard([], true))).toEqual(["qn"]);
   });
 
   it("выбор недели: эта, следующая и дальше", () => {

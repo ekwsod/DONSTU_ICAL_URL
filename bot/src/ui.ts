@@ -17,6 +17,7 @@ export const MENU = {
   today: "📍 Сегодня",
   tomorrow: "➡️ Завтра",
   weeks: "🗓 Недели",
+  newHomework: "✍️ Записать дз",
   homework: "📝 Мои дз",
   settings: "⚙️",
 } as const;
@@ -108,8 +109,9 @@ export function mainMenu(): Keyboard {
   return new Keyboard()
     .text(MENU.today)
     .text(MENU.tomorrow)
-    .row()
     .text(MENU.weeks)
+    .row()
+    .text(MENU.newHomework)
     .text(MENU.homework)
     .text(MENU.settings)
     .resized()
@@ -268,12 +270,22 @@ export function homeworkText(list: Homework[]): string {
   return "Открытые дз — нажми, чтобы открыть:";
 }
 
-/** Список дз: каждое — кнопка, открывающая карточку. */
-export function homeworkKeyboard(list: Homework[]): InlineKeyboard {
+/** Подсказка после «Записать дз»: следующий текст разберёт ИИ. */
+export const NEW_HOMEWORK_TEXT = [
+  "Напиши дз как есть, например:",
+  "<i>матан к пятнице 1-5 и конспект §3</i>",
+  "<i>по химии отчёт по лабе к следующей паре</i>",
+  "",
+  "Предмет, срок и пункты найду сам, а ты подтвердишь.",
+].join("\n");
+
+/** Список дз: каждое — кнопка, открывающая карточку; withNew — кнопка записи нового дз внизу. */
+export function homeworkKeyboard(list: Homework[], withNew = false): InlineKeyboard {
   const kb = new InlineKeyboard();
   for (const h of list) {
     kb.text(`до ${shortDate(h.due_date)} · ${h.title}: ${h.text}`, `h:${h.id}`).row();
   }
+  if (withNew) kb.text("✍️ Записать дз", "qn");
   return kb;
 }
 

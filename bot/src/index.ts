@@ -16,6 +16,7 @@ import {
   MAX_WEEK_OFFSET,
   LEGACY_MENU,
   MENU,
+  NEW_HOMEWORK_TEXT,
   REMIND_HOURS,
   SETTINGS_TEXT,
   WEATHER_LEADS,
@@ -136,7 +137,7 @@ function createBot(env: Env, store: Store): Bot {
 
   const showHomeworkList = async (ctx: Context) => {
     const list = openHomework(await store.getHomework());
-    await show(ctx, homeworkText(list), homeworkKeyboard(list));
+    await show(ctx, homeworkText(list), homeworkKeyboard(list, true));
   };
 
   const showSettings = async (ctx: Context) => {
@@ -164,6 +165,7 @@ function createBot(env: Env, store: Store): Bot {
         { command: "today", description: "Сегодня: пары и погода" },
         { command: "week", description: "Выбрать неделю" },
         { command: "hw", description: "Мои дз" },
+        { command: "new", description: "Записать дз своими словами" },
         { command: "settings", description: "Настройки: срок дз, погода, напоминания" },
         { command: "cancel", description: "Отменить ввод дз" },
       ])
@@ -197,7 +199,19 @@ function createBot(env: Env, store: Store): Bot {
     await showDay(ctx, todayMoscow());
   }));
   bot.command("hw", menu(showHomeworkList));
+  bot.command("new", menu((ctx) => askNewHomework(ctx)));
   bot.hears(MENU.homework, menu(showHomeworkList));
+
+  // «Записать дз»: подсказка, следующий текст уйдёт в разбор ИИ (pending очищен — текст не примут за «➕ дз» у пары).
+  const askNewHomework = async (ctx: Context) => {
+    await ctx.reply(NEW_HOMEWORK_TEXT, { parse_mode: "HTML" });
+  };
+  bot.hears(MENU.newHomework, menu(askNewHomework));
+  bot.callbackQuery("qn", async (ctx) => {
+    await store.clearPending();
+    await ctx.answerCallbackQuery();
+    await askNewHomework(ctx);
+  });
   bot.command("settings", menu(showSettings));
   bot.hears(MENU.settings, menu(showSettings));
 
