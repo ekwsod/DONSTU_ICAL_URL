@@ -1,4 +1,14 @@
 import { Api, Bot, InlineKeyboard, webhookCallback, type Context } from "grammy";
+import {
+  draftHomework,
+  draftText,
+  draftToHomework,
+  planComment,
+  resolveDue,
+  subjectsFrom,
+  workersAiRunner,
+  type HomeworkDraft,
+} from "./ai";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
 import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, reminderText } from "./morning";
 import { Store } from "./store";
@@ -12,6 +22,8 @@ import {
   dayKeyboard,
   dayText,
   dottedDate,
+  draftKeyboard,
+  escapeHtml,
   dueKeyboard,
   homeworkCardKeyboard,
   homeworkCardText,
@@ -21,6 +33,7 @@ import {
   settingsKeyboard,
   shiftDate,
   shortDate,
+  subjectsKeyboard,
   todaySummary,
   weekDates,
   weekKeyboard,
@@ -227,11 +240,33 @@ function createBot(env: Env, store: Store): Bot {
     await ctx.reply(`Напиши дз по «${lesson.title}». Отмена — /cancel`);
   });
 
-  // Текст дз.
+  /** Карточка черновика «Записать так?» — новым сообщением или правкой текущего. */
+  const showDraft = async (ctx: Context, draft: HomeworkDraft) => {
+    await show(ctx, draftText(draft, await lessonsList(), escapeHtml), draftKeyboard(draft));
+  };
+
+  /** Свободный текст → ИИ разбирает предмет, срок и пункты → карточка на подтверждение. */
+  const quickHomework = async (ctx: Context, text: string) => {
+    const lessons = await lessonsList();
+    if (lessons.length === 0) {
+      await ctx.reply(NO_SCHEDULE);
+      return;
+    }
+    await ctx.replyWithChatAction("typing").catch(() => {});
+    const settings = await store.getSettings();
+    const draft = await draftHomework(workersAiRunner(env.AI), text, moscowNow(), lessons, settings.due_mode);
+    await store.putPending({ draft });
+    await showDraft(ctx, draft);
+  };
+
+  // Текст: ответ на «➕ дз» у пары или дз свободным текстом.
   bot.on("message:text", async (ctx) => {
     if (ctx.message.text.startsWith("/")) return;
     const pending = await store.getPending();
-    if (!pending || pending.text !== undefined) return;
+    if (!pending?.lesson_id || pending.text !== undefined) {
+      await quickHomework(ctx, ctx.message.text);
+      return;
+    }
 
     const lessons = await lessonsList();
     const from = lessons.find((l) => l.id === pending.lesson_id);
@@ -252,6 +287,65 @@ function createBot(env: Env, store: Store): Bot {
     await store.putPending({ lesson_id: from.id, text });
     const hint = settings.due_mode !== "ask" ? "Подходящей пары в расписании нет. " : "";
     await ctx.reply(`${hint}К какому сроку?`, { reply_markup: dueKeyboard(dueOptions(lessons, from)) });
+  });
+
+  // --- Черновик дз от ИИ ---
+
+  /** Черновик из pending; если его нет — диалог устарел. */
+  const pendingDraft = async (ctx: Context) => {
+    const draft = (await store.getPending())?.draft;
+    if (!draft) {
+      await ctx.editMessageText("Черновик устарел — напиши дз заново.");
+      return null;
+    }
+    return draft;
+  };
+
+  bot.callbackQuery("q:ok", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const draft = await pendingDraft(ctx);
+    if (!draft) return;
+    const homework = draftToHomework(crypto.randomUUID().slice(0, 8), draft);
+    if (!homework) {
+      await showDraft(ctx, draft);
+      return;
+    }
+    const list = await store.getHomework();
+    list.push(homework);
+    await store.putHomework(list);
+    await store.clearPending();
+    await showHomeworkCard(ctx, homework);
+  });
+
+  bot.callbackQuery("q:subj", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!(await pendingDraft(ctx))) return;
+    await show(ctx, "К какому предмету?", subjectsKeyboard(subjectsFrom(await lessonsList())));
+  });
+
+  bot.callbackQuery("q:back", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const draft = await pendingDraft(ctx);
+    if (draft) await showDraft(ctx, draft);
+  });
+
+  // Предмет выбран вручную: срок пересчитываем по нему.
+  bot.callbackQuery(/^qs:(\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const draft = await pendingDraft(ctx);
+    if (!draft) return;
+    const lessons = await lessonsList();
+    const subject = subjectsFrom(lessons)[Number(ctx.match[1])];
+    if (!subject) return showDraft(ctx, draft);
+    const settings = await store.getSettings();
+    const next: HomeworkDraft = {
+      ...draft,
+      subject_key: subject.key,
+      title: subject.title,
+      ...resolveDue(lessons, moscowNow(), subject.key, "none", "", settings.due_mode),
+    };
+    await store.putPending({ draft: next });
+    await showDraft(ctx, next);
   });
 
   /** Достаёт pending с текстом и исходную пару; если их нет — гасит диалог. */
@@ -291,12 +385,30 @@ function createBot(env: Env, store: Store): Bot {
   // «Другая дата»: неделя в режиме выбора срока.
   bot.callbackQuery(/^dw:(\d)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
-    if (!(await pendingWithLesson(ctx))) return;
+    const hasDraft = Boolean((await store.getPending())?.draft);
+    if (!hasDraft && !(await pendingWithLesson(ctx))) return;
     await showWeek(ctx, Math.min(Number(ctx.match[1]), MAX_WEEK_OFFSET), "due");
   });
 
   bot.callbackQuery(/^dd:(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    const date = ctx.match[1];
+    const draft = (await store.getPending())?.draft;
+    if (draft) {
+      // Для черновика дата — к паре этого предмета в тот день, если она есть; затем снова карточка.
+      const lesson = (await lessonsList())
+        .filter((l) => l.subject_key === draft.subject_key && l.date === date)
+        .sort((a, b) => a.start.localeCompare(b.start))[0];
+      const next: HomeworkDraft = {
+        ...draft,
+        due_date: date,
+        due_lesson_id: lesson?.id ?? null,
+        due_label: lesson ? "пара в этот день" : "к этой дате",
+      };
+      await store.putPending({ draft: next });
+      await showDraft(ctx, next);
+      return;
+    }
     const state = await pendingWithLesson(ctx);
     if (!state) return;
     await ctx.deleteMessage().catch(() => {});
@@ -376,7 +488,11 @@ async function sendMorningWeather(env: Env): Promise<void> {
   // Отмечаем заранее: при сбое отправки лучше пропустить утро, чем слать дубли каждые 5 минут.
   await store.putWeatherSent(now.date);
   const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
-  const text = morningText(first, lessons.filter((l) => l.date === now.date), forecast, homework);
+  const today = lessons.filter((l) => l.date === now.date);
+  const due = homework.filter((h) => !h.done && h.due_date === now.date);
+  // Без ИИ план всё равно уйдёт — просто без строки 💬.
+  const comment = await planComment(workersAiRunner(env.AI), today, forecast && dayWeather(forecast, now.date, today), due);
+  const text = morningText(first, today, forecast, homework, comment);
   await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, text, { parse_mode: "HTML" });
 }
 

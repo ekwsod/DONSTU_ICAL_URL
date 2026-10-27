@@ -79,7 +79,13 @@ function duration(total: number): string {
  * Сообщение перед выходом — план на день: погода, затем все пары по порядку
  * (номер, время, предмет, куда идти, что сдать), окна между парами и когда всё закончится.
  */
-export function morningText(first: Lesson, todayLessons: Lesson[], forecast: Forecast | null, homework: Homework[]): string {
+export function morningText(
+  first: Lesson,
+  todayLessons: Lesson[],
+  forecast: Forecast | null,
+  homework: Homework[],
+  comment: string | null = null,
+): string {
   const lessons = [...todayLessons].sort((a, b) => a.start.localeCompare(b.start));
   const due = homework.filter((h) => !h.done && h.due_date === first.date);
   const last = lessons[lessons.length - 1] ?? first;
@@ -117,5 +123,6 @@ export function morningText(first: Lesson, todayLessons: Lesson[], forecast: For
   if (loose.length > 0) {
     lines.push("", "<b>Ещё сдать сегодня:</b>", ...loose.map((h) => `📝 ${escapeHtml(h.title)}: ${escapeHtml(h.text)}`));
   }
+  if (comment) lines.push("", `💬 <i>${escapeHtml(comment)}</i>`);
   return lines.join("\n");
 }

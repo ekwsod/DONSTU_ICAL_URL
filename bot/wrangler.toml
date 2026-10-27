@@ -12,6 +12,10 @@ WEATHER_LON = "39.7116"
 [triggers]
 crons = ["*/5 * * * *"]
 
+# Workers AI: комментарий к плану дня и разбор дз из свободного текста
+[ai]
+binding = "AI"
+
 [[kv_namespaces]]
 binding = "SCHEDULE"
 id = "1f6e5381f87d4e46b9261cc599696b44"

@@ -1,6 +1,7 @@
 import { InlineKeyboard, Keyboard } from "grammy";
 import type { DueOption } from "./homework";
 import type { DayWeather } from "./weather";
+import type { HomeworkDraft, Subject } from "./ai";
 import type { DueMode, Homework, Lesson, LessonType, Settings } from "./types";
 
 const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -305,6 +306,24 @@ export const SETTINGS_TEXT = [
   "🌤 <b>Погода перед выходом</b> — за сколько минут до первой пары написать.",
   "🔔 <b>Напоминание о дз</b> — во сколько накануне напомнить, что завтра сдавать.",
 ].join("\n");
+
+/** Кнопки под черновиком дз: сохранить (если есть предмет и срок), поменять срок или предмет, отмена. */
+export function draftKeyboard(draft: HomeworkDraft): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  if (draft.subject_key && draft.due_date) kb.text("✅ Сохранить", "q:ok").row();
+  if (draft.subject_key) kb.text("📅 Другой срок", "dw:0");
+  kb.text(draft.subject_key ? "📚 Другой предмет" : "📚 Выбрать предмет", "q:subj").row();
+  kb.text("✖ Отмена", "due:cancel");
+  return kb;
+}
+
+/** Выбор предмета для черновика: номер в отсортированном списке (ключи бывают длиннее лимита callback_data). */
+export function subjectsKeyboard(subjects: Subject[]): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  subjects.forEach((s, i) => kb.text(s.title, `qs:${i}`).row());
+  kb.text("◀ Назад", "q:back");
+  return kb;
+}
 
 export function settingsKeyboard(current: Settings): InlineKeyboard {
   const kb = new InlineKeyboard();

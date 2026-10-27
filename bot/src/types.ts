@@ -1,4 +1,7 @@
+import type { HomeworkDraft } from "./ai";
+
 export interface Env {
+  AI: Ai;
   SCHEDULE: KVNamespace;
   BOT_TOKEN: string;
   OWNER_CHAT_ID: string;
@@ -50,8 +53,12 @@ export interface Settings {
   hw_remind_hour: number;
 }
 
-/** Состояние диалога добавления дз (между нажатием «➕ дз» и выбором срока). */
+/**
+ * Состояние диалога добавления дз: либо «➕ дз» у пары (lesson_id, затем text),
+ * либо дз, написанное свободным текстом и разобранное ИИ (draft, ждёт подтверждения).
+ */
 export interface Pending {
-  lesson_id: string;
+  lesson_id?: string;
   text?: string;
+  draft?: HomeworkDraft;
 }
