@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeWeather, formatTemp, parseForecast, weatherBadge, weatherLines, type Forecast } from "../src/weather";
+import { dayWeather, describeWeather, formatTemp, parseForecast, weatherBadge, type Forecast } from "../src/weather";
 import type { Lesson } from "../src/types";
 
 const lesson = (start: string, end: string): Lesson => ({
@@ -61,25 +61,25 @@ describe("weatherBadge", () => {
   });
 });
 
-describe("weatherLines", () => {
-  it("сводка дня, погода к первой паре и после последней", () => {
-    const lines = weatherLines(forecast, "2026-10-28", [lesson("12:00", "13:35"), lesson("08:30", "10:05")]);
-    expect(lines).toEqual([
-      "☁️ пасмурно, +7…+17°",
-      "🚶 К первой паре (08:00): ☁️ +7°, ощущается +2°",
-      "🏠 После пар (14:00): 🌤 +15°",
-    ]);
+describe("dayWeather", () => {
+  it("сверху сводка и погода к первой паре, отдельно — после последней", () => {
+    expect(dayWeather(forecast, "2026-10-28", [lesson("12:00", "13:35"), lesson("08:30", "10:05")])).toEqual({
+      top: ["☁️ пасмурно, +7…+17°", "🚶 К первой паре (08:00): ☁️ +7°, ощущается +2°"],
+      after: "🏠 После пар (14:00): 🌤 +15°",
+    });
   });
 
   it("при дожде советует зонт и показывает вероятность по часам", () => {
-    const lines = weatherLines(forecast, "2026-10-29", [lesson("10:15", "11:50")]);
-    expect(lines[0]).toBe("🌧 дождь, −3…+4° · ☔ осадки 80%, возьми зонт");
-    expect(lines[1]).toBe("🚶 К первой паре (10:00): 🌧 +1°, ощущается −3°, ☔ 75%");
-    expect(lines[2]).toBe("🏠 После пар (12:00): 🌧 0°, ощущается −4°, ☔ 90%");
+    const weather = dayWeather(forecast, "2026-10-29", [lesson("10:15", "11:50")]);
+    expect(weather?.top).toEqual([
+      "🌧 дождь, −3…+4° · ☔ осадки 80%, возьми зонт",
+      "🚶 К первой паре (10:00): 🌧 +1°, ощущается −3°, ☔ 75%",
+    ]);
+    expect(weather?.after).toBe("🏠 После пар (12:00): 🌧 0°, ощущается −4°, ☔ 90%");
   });
 
-  it("без пар — только сводка, вне прогноза — ничего", () => {
-    expect(weatherLines(forecast, "2026-10-28", [])).toHaveLength(1);
-    expect(weatherLines(forecast, "2026-12-01", [lesson("08:30", "10:05")])).toEqual([]);
+  it("без пар — только сводка, вне прогноза — null", () => {
+    expect(dayWeather(forecast, "2026-10-28", [])).toEqual({ top: ["☁️ пасмурно, +7…+17°"], after: null });
+    expect(dayWeather(forecast, "2026-12-01", [lesson("08:30", "10:05")])).toBeNull();
   });
 });

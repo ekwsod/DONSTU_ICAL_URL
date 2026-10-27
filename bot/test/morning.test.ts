@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lessonToWarnAbout, morningText, moscowNow } from "../src/morning";
+import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, reminderText } from "../src/morning";
 import { parseForecast } from "../src/weather";
 import { settingsKeyboard, todaySummary } from "../src/ui";
 import type { Homework, Lesson } from "../src/types";
@@ -54,11 +54,11 @@ describe("morningText", () => {
       precipitation_probability_max: [70],
     },
     hourly: {
-      time: ["2026-10-28T08:00", "2026-10-28T11:00"],
-      temperature_2m: [6, 10],
-      apparent_temperature: [3, 10],
-      weather_code: [61, 3],
-      precipitation_probability: [60, 10],
+      time: ["2026-10-28T08:00", "2026-10-28T11:00", "2026-10-28T16:00"],
+      temperature_2m: [6, 10, 11],
+      apparent_temperature: [3, 10, 11],
+      weather_code: [61, 3, 3],
+      precipitation_probability: [60, 10, 10],
     },
   });
   const homework: Homework = {
@@ -73,13 +73,47 @@ describe("morningText", () => {
   };
   const today = lessons.filter((l) => l.date === "2026-10-28");
 
-  it("первая пара, погода с зонтом и дз на сегодня", () => {
-    const text = morningText(lesson("2026-10-28", "08:30"), today, forecast, [homework]);
-    expect(text).toContain("⏰ <b>Скоро выходить</b>");
-    expect(text).toContain("Первая пара в <b>08:30</b>: Химия, ауд. 1-483");
-    expect(text).toContain("🌧 дождь, +5…+12° · ☔ осадки 70%, возьми зонт");
-    expect(text).toContain("🚶 К первой паре (08:00): 🌧 +6°, ощущается +3°, ☔ 60%");
-    expect(text).toContain("<b>Сегодня сдавать:</b>\n📝 Химия: отчёт по лабе");
+  it("план дня: погода, пары с местом, окно, дз под парой и время окончания", () => {
+    const day = [
+      lesson("2026-10-28", "08:30", { id: "chem", end: "10:05" }),
+      lesson("2026-10-28", "10:15", { id: "math", end: "11:50", title: "Математика", type: "lecture", room: "1-35а" }),
+      lesson("2026-10-28", "14:15", { id: "pe", end: "15:50", title: "Физкультура", type: "practice", room: "манеж" }),
+    ];
+    const text = morningText(day[0], day, forecast, [
+      { ...homework, id: "2", text: "задачи 1-5", title: "Математика", due_lesson_id: "math" },
+      homework,
+    ]);
+    expect(text).toBe(
+      [
+        "⏰ <b>Скоро выходить</b> — первая пара в <b>08:30</b>",
+        "",
+        "🌧 дождь, +5…+12° · ☔ осадки 70%, возьми зонт",
+        "🚶 К первой паре (08:00): 🌧 +6°, ощущается +3°, ☔ 60%",
+        "",
+        "<b>План на сегодня</b> (3 пары, до 15:50):",
+        "<b>1 пара · 08:30–10:05</b> — 🧪 Химия (лаба)",
+        "📍 корпус 1, ауд. 483",
+        "<b>2 пара · 10:15–11:50</b> — 📘 Математика (лекция)",
+        "📍 корпус 1, ауд. 35а",
+        "📝 сдать: задачи 1-5",
+        "☕ окно 11:50–14:15 (2 ч 25 мин)",
+        "<b>4 пара · 14:15–15:50</b> — ✏️ Физкультура (практика)",
+        "📍 манеж",
+        "🏁 Пары закончатся в 15:50",
+        "🏠 После пар (16:00): ☁️ +11°",
+        "",
+        "<b>Ещё сдать сегодня:</b>",
+        "📝 Химия: отчёт по лабе",
+      ].join("\n"),
+    );
+  });
+
+  it("обед в 40 минут — не окно", () => {
+    const day = [
+      lesson("2026-10-28", "12:00", { id: "a", end: "13:35" }),
+      lesson("2026-10-28", "14:15", { id: "b", end: "15:50" }),
+    ];
+    expect(morningText(day[0], day, forecast, [])).not.toContain("окно");
   });
 
   it("без прогноза честно говорит, что погоды нет", () => {
@@ -101,10 +135,45 @@ describe("todaySummary", () => {
 });
 
 describe("settingsKeyboard", () => {
-  it("отмечает текущий режим дз и время погоды", () => {
-    const kb = settingsKeyboard({ due_mode: "next", weather_lead: 45 });
+  it("отмечает текущий режим дз, время погоды и напоминаний", () => {
+    const kb = settingsKeyboard({ due_mode: "next", weather_lead: 45, hw_remind_hour: 0 });
     const labels = kb.inline_keyboard.map((row) => row.map((b) => b.text));
     expect(labels[1]).toEqual(["✅ Всегда к следующей паре"]);
-    expect(labels[3]).toEqual(["Выкл", "30 мин", "✅ 45 мин", "60 мин", "90 мин"]);
+    expect(labels[3]).toEqual(["🌤", "Выкл", "30м", "✅ 45м", "60м", "90м"]);
+    expect(labels[4]).toEqual(["🔔", "✅ Выкл", "18:00", "20:00", "22:00"]);
+  });
+});
+
+describe("homeworkToRemind", () => {
+  const hw = (id: string, due_date: string, done = false): Homework => ({
+    id,
+    text: "задачи",
+    title: "Химия",
+    subject_key: "химия",
+    from_lesson_id: "x",
+    due_date,
+    due_lesson_id: "2026-10-29-10:15",
+    done,
+  });
+  const list = [hw("1", "2026-10-29"), hw("2", "2026-10-29", true), hw("3", "2026-10-30")];
+
+  it("в окне с выбранного часа — только открытые дз на завтра", () => {
+    expect(homeworkToRemind(at("19:59"), list, 20, null)).toEqual([]);
+    expect(homeworkToRemind(at("20:00"), list, 20, null).map((h) => h.id)).toEqual(["1"]);
+    expect(homeworkToRemind(at("21:55"), list, 20, null).map((h) => h.id)).toEqual(["1"]);
+    expect(homeworkToRemind(at("22:00"), list, 20, null)).toEqual([]);
+  });
+
+  it("не повторяет в тот же день и молчит, если выключено", () => {
+    expect(homeworkToRemind(at("20:05"), list, 20, "2026-10-28")).toEqual([]);
+    expect(homeworkToRemind(at("20:05"), list, 0, null)).toEqual([]);
+  });
+
+  it("переход через месяц: 31 октября напоминает про 1 ноября", () => {
+    expect(homeworkToRemind(at("20:00", "2026-10-31"), [hw("4", "2026-11-01")], 20, null)).toHaveLength(1);
+  });
+
+  it("текст: предмет, время пары и задание", () => {
+    expect(reminderText([list[0]], lessons)).toBe("🔔 <b>Завтра сдавать</b> (1):\n📝 Химия — к 10:15: задачи");
   });
 });

@@ -8,12 +8,13 @@ const KEYS = {
   pending: "pending",
   weather: "weather",
   weatherSent: "weather_sent",
+  homeworkReminded: "hw_reminded",
 } as const;
 
 /** Прогноз живёт в KV час, потом запрашивается заново. */
 const WEATHER_TTL_SECONDS = 60 * 60;
 
-const DEFAULT_SETTINGS: Settings = { due_mode: "ask", weather_lead: 60 };
+const DEFAULT_SETTINGS: Settings = { due_mode: "ask", weather_lead: 60, hw_remind_hour: 20 };
 
 /** Обёртка над KV: один пользователь, поэтому каждая сущность — один JSON-ключ. */
 export class Store {
@@ -43,6 +44,15 @@ export class Store {
 
   putWeatherSent(date: string): Promise<void> {
     return this.write(KEYS.weatherSent, date);
+  }
+
+  /** Дата (YYYY-MM-DD), когда последний раз напоминали о дз на завтра. */
+  getHomeworkReminded(): Promise<string | null> {
+    return this.read<string>(KEYS.homeworkReminded);
+  }
+
+  putHomeworkReminded(date: string): Promise<void> {
+    return this.write(KEYS.homeworkReminded, date);
   }
 
   getLessons(): Promise<LessonsPayload | null> {

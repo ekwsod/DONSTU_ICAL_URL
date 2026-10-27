@@ -3,12 +3,14 @@ import {
   dayKeyboard,
   dayText,
   escapeHtml,
+  mainMenu,
   longDate,
   mondayOf,
   shiftDate,
   weekKeyboard,
   weekOffsetOf,
   weekTitle,
+  weeksKeyboard,
 } from "../src/ui";
 import type { Homework, Lesson } from "../src/types";
 
@@ -83,12 +85,15 @@ describe("weekKeyboard", () => {
       "Пт 30 окт · 5 пар · ☁️ +17°",
       "Сб 31 окт · нет пар",
     ]);
-    expect(rows[6]).toEqual(["Следующая ▶"]);
+    expect(rows[6]).toEqual(["🗓 Недели", "▶"]);
     expect(rows).toHaveLength(7);
   });
 
-  it("на следующей неделе можно вернуться назад", () => {
-    expect(labels(weekKeyboard("2026-10-28", 1, week)).at(-1)).toEqual(["◀ Эта неделя", "Дальше ▶"]);
+  it("стрелки листают недели, «Недели» открывает выбор", () => {
+    const kb = weekKeyboard("2026-10-28", 1, week);
+    expect(labels(kb).at(-1)).toEqual(["◀", "🗓 Недели", "▶"]);
+    expect(data(kb).slice(-3)).toEqual(["w:0", "wk", "w:2"]);
+    expect(labels(weekKeyboard("2026-10-28", 3, week)).at(-1)).toEqual(["◀", "🗓 Недели"]);
   });
 
   it("в режиме выбора срока кнопки ведут на dd: и dw:, есть отмена", () => {
@@ -96,6 +101,21 @@ describe("weekKeyboard", () => {
     expect(callbacks[0]).toBe("dd:2026-10-26");
     expect(callbacks).toContain("dw:1");
     expect(callbacks.at(-1)).toBe("due:cancel");
+  });
+});
+
+describe("меню и выбор недели", () => {
+  it("в меню сначала дни, потом недели, дз и настройки", () => {
+    expect(mainMenu().keyboard.map((row) => row.map((b) => (typeof b === "string" ? b : b.text)))).toEqual([
+      ["📍 Сегодня", "➡️ Завтра"],
+      ["🗓 Недели", "📝 Мои дз", "⚙️"],
+    ]);
+  });
+
+  it("выбор недели: эта, следующая и дальше", () => {
+    const kb = weeksKeyboard("2026-10-28");
+    expect(labels(kb).slice(0, 2)).toEqual([["Эта неделя: 26 окт – 1 ноя"], ["Следующая неделя: 2 ноя – 8 ноя"]]);
+    expect(data(kb)).toEqual(["w:0", "w:1", "w:2", "w:3"]);
   });
 });
 
@@ -112,7 +132,7 @@ describe("dayText", () => {
         "",
         "<b>1 пара · 08:30–10:00</b>",
         "📘 <b>Математика</b>",
-        "<i>лекция · ауд. 1-234</i>",
+        "<i>лекция · корпус 1, ауд. 234</i>",
         "📝 задачи 1-5",
         "",
         "<b>Дз на этот день</b>",
@@ -124,6 +144,17 @@ describe("dayText", () => {
   it("экранирует HTML в тексте дз", () => {
     expect(dayText("2026-11-02", [lesson], [hw({ text: "a < b & c" })])).toContain("📝 a &lt; b &amp; c");
     expect(escapeHtml("<b>")).toBe("&lt;b&gt;");
+  });
+
+  it("погода: сводка под заголовком, после пар — под расписанием", () => {
+    const text = dayText("2026-11-02", [lesson], [hw({ text: "эссе", due_lesson_id: null })], {
+      top: ["☁️ пасмурно, +7…+17°"],
+      after: "🏠 После пар (10:00): ☀️ +12°",
+    });
+    const blocks = text.split("\n\n");
+    expect(blocks[0]).toBe("🗓 <b>2 ноября, понедельник</b>\n☁️ пасмурно, +7…+17°");
+    expect(blocks[2]).toBe("🏠 После пар (10:00): ☀️ +12°");
+    expect(blocks[3]).toBe("<b>Дз на этот день</b>\n📝 Математика: эссе");
   });
 
   it("пишет, что пар нет", () => {

@@ -99,18 +99,24 @@ function hourLine(forecast: Forecast, date: string, hour: number, prefix: string
   return `${prefix} (${pad(hour)}:00): ${describeWeather(h.code).icon} ${formatTemp(h.temp)}${feels}${rain}`;
 }
 
+/** Погода для дня: `top` — над расписанием (сводка, к первой паре), `after` — под ним (после пар). */
+export interface DayWeather {
+  top: string[];
+  after: string | null;
+}
+
 /**
- * Строки погоды для дня: общая сводка, затем погода к началу первой пары
- * (час начала, округлённый вниз) и после последней (час окончания, округлённый вверх).
+ * Погода к началу первой пары берётся на час начала (округление вниз),
+ * после последней — на час окончания (округление вверх). null — дня нет в прогнозе.
  */
-export function weatherLines(forecast: Forecast, date: string, lessons: Lesson[]): string[] {
+export function dayWeather(forecast: Forecast, date: string, lessons: Lesson[]): DayWeather | null {
   const day = forecast.daily[date];
-  if (!day) return [];
+  if (!day) return null;
 
   const { icon, label } = describeWeather(day.code);
   const rain = day.precip >= UMBRELLA_PERCENT ? ` · ☔ осадки ${day.precip}%, возьми зонт` : "";
   const range = `${formatTemp(day.min).replace("°", "")}…${formatTemp(day.max)}`; // «+7…+17°»
-  const lines = [`${icon} ${label}, ${range}${rain}`];
+  const result: DayWeather = { top: [`${icon} ${label}, ${range}${rain}`], after: null };
 
   if (lessons.length > 0) {
     const sorted = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
@@ -121,11 +127,10 @@ export function weatherLines(forecast: Forecast, date: string, lessons: Lesson[]
     const endHour = Math.min(23, Number(end.slice(0, 2)) + (end.slice(3) === "00" ? 0 : 1));
 
     const toFirst = hourLine(forecast, date, startHour, "🚶 К первой паре");
-    const afterLast = hourLine(forecast, date, endHour, "🏠 После пар");
-    if (toFirst) lines.push(toFirst);
-    if (afterLast) lines.push(afterLast);
+    if (toFirst) result.top.push(toFirst);
+    result.after = hourLine(forecast, date, endHour, "🏠 После пар");
   }
-  return lines;
+  return result;
 }
 
 /** Загрузка прогноза. Любая ошибка — null: без погоды бот всё равно работает. */

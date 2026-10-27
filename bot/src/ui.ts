@@ -1,5 +1,6 @@
 import { InlineKeyboard, Keyboard } from "grammy";
 import type { DueOption } from "./homework";
+import type { DayWeather } from "./weather";
 import type { DueMode, Homework, Lesson, LessonType, Settings } from "./types";
 
 const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -12,13 +13,17 @@ export const MAX_WEEK_OFFSET = 3;
 
 /** Тексты кнопок постоянного меню — по ним же бот ловит нажатия. */
 export const MENU = {
-  thisWeek: "📅 Эта неделя",
-  nextWeek: "📅 Следующая",
+  today: "📍 Сегодня",
+  tomorrow: "➡️ Завтра",
+  weeks: "🗓 Недели",
   homework: "📝 Мои дз",
-  settings: "⚙️ Настройки",
+  settings: "⚙️",
 } as const;
 
-const TYPE_LABELS: Record<LessonType, string> = {
+/** Кнопки меню из прошлых версий: у кого они ещё на экране, получат новое меню. */
+export const LEGACY_MENU = ["📅 Эта неделя", "📅 Следующая", "⚙️ Настройки"];
+
+export const TYPE_LABELS: Record<LessonType, string> = {
   lecture: "лекция",
   practice: "практика",
   lab: "лаба",
@@ -97,15 +102,26 @@ export function todaySummary(today: string, lessons: Lesson[], weather: string |
   return `${head}: ${body}${weather ? ` · ${weather}` : ""}`;
 }
 
+/** Меню: в первую очередь дни (сегодня, завтра, дальше — стрелками в самом дне), недели — отдельной кнопкой. */
 export function mainMenu(): Keyboard {
   return new Keyboard()
-    .text(MENU.thisWeek)
-    .text(MENU.nextWeek)
+    .text(MENU.today)
+    .text(MENU.tomorrow)
     .row()
+    .text(MENU.weeks)
     .text(MENU.homework)
     .text(MENU.settings)
     .resized()
     .persistent();
+}
+
+/** Выбор недели: эта, следующая и дальше, насколько хватает расписания. */
+export function weeksKeyboard(today: string): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (let offset = 0; offset <= MAX_WEEK_OFFSET; offset++) {
+    kb.text(weekTitle(today, offset), `w:${offset}`).row();
+  }
+  return kb;
 }
 
 export interface WeekData {
@@ -142,13 +158,14 @@ export function weekKeyboard(
     kb.text(parts.join(" · "), `${dayAction}:${date}`).row();
   }
 
-  if (offset > 0) kb.text(offset === 1 ? "◀ Эта неделя" : "◀ Раньше", `${weekAction}:${offset - 1}`);
-  if (offset < MAX_WEEK_OFFSET) kb.text(offset === 0 ? "Следующая ▶" : "Дальше ▶", `${weekAction}:${offset + 1}`);
+  if (offset > 0) kb.text("◀", `${weekAction}:${offset - 1}`);
+  if (mode === "view") kb.text("🗓 Недели", "wk");
+  if (offset < MAX_WEEK_OFFSET) kb.text("▶", `${weekAction}:${offset + 1}`);
   if (mode === "due") kb.row().text("Отмена", "due:cancel");
   return kb;
 }
 
-const TYPE_ICONS: Record<LessonType, string> = {
+export const TYPE_ICONS: Record<LessonType, string> = {
   lecture: "📘",
   practice: "✏️",
   lab: "🧪",
@@ -156,7 +173,7 @@ const TYPE_ICONS: Record<LessonType, string> = {
 };
 
 /** Начала пар в ДГТУ → номер пары. */
-const PAIR_NUMBERS: Record<string, number> = {
+export const PAIR_NUMBERS: Record<string, number> = {
   "08:30": 1,
   "10:15": 2,
   "12:00": 3,
@@ -166,6 +183,12 @@ const PAIR_NUMBERS: Record<string, number> = {
   "19:30": 7,
 };
 
+/** «1-483» → «корпус 1, ауд. 483»; прочее («манеж») — как есть. */
+export function formatRoom(room: string): string {
+  const match = room.match(/^(\d+)-(.+)$/);
+  return match ? `корпус ${match[1]}, ауд. ${match[2]}` : room;
+}
+
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -173,7 +196,7 @@ export function escapeHtml(text: string): string {
 function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
   const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
   const number = PAIR_NUMBERS[lesson.start];
-  const details = [TYPE_LABELS[lesson.type], lesson.room ? `ауд. ${lesson.room}` : ""].filter(Boolean).join(" · ");
+  const details = [TYPE_LABELS[lesson.type], lesson.room ? formatRoom(lesson.room) : ""].filter(Boolean).join(" · ");
 
   const lines = [
     `<b>${number ? `${number} пара · ` : ""}${time}</b>`,
@@ -186,10 +209,10 @@ function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
 
 /**
  * Текст дня (HTML): заголовок с погодой, каждая пара — отдельный блок через пустую строку,
- * время и предмет жирным, под парой — дз со сроком на неё.
+ * время и предмет жирным, под парой — дз со сроком на неё, ниже — погода после пар.
  */
-export function dayText(date: string, lessons: Lesson[], homework: Homework[], weather: string[] = []): string {
-  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`, ...weather.map(escapeHtml)]];
+export function dayText(date: string, lessons: Lesson[], homework: Homework[], weather: DayWeather | null = null): string {
+  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`, ...(weather?.top ?? []).map(escapeHtml)]];
   const due = homework.filter((h) => !h.done && h.due_date === date);
 
   if (lessons.length === 0) {
@@ -198,6 +221,8 @@ export function dayText(date: string, lessons: Lesson[], homework: Homework[], w
   for (const lesson of lessons) {
     blocks.push(lessonBlock(lesson, due.filter((h) => h.due_lesson_id === lesson.id)));
   }
+  // Погода после пар — под расписанием, по порядку дня.
+  if (weather?.after) blocks.push([escapeHtml(weather.after)]);
 
   const loose = due.filter((h) => !lessons.some((l) => l.id === h.due_lesson_id));
   if (loose.length > 0) {
@@ -270,21 +295,30 @@ export function homeworkCardKeyboard(h: Homework): InlineKeyboard {
 /** Варианты «за сколько минут до первой пары присылать погоду»; 0 — выключено. */
 export const WEATHER_LEADS = [0, 30, 45, 60, 90];
 
+/** Варианты часа напоминания о дз накануне срока; 0 — выключено. */
+export const REMIND_HOURS = [0, 18, 20, 22];
+
 export const SETTINGS_TEXT = [
   "<b>Настройки</b>",
   "",
   "📝 <b>Срок дз</b> — первые три кнопки.",
-  "🌤 <b>Погода перед выходом</b> — нижний ряд: за сколько минут до первой пары написать.",
+  "🌤 <b>Погода перед выходом</b> — за сколько минут до первой пары написать.",
+  "🔔 <b>Напоминание о дз</b> — во сколько накануне напомнить, что завтра сдавать.",
 ].join("\n");
 
 export function settingsKeyboard(current: Settings): InlineKeyboard {
   const kb = new InlineKeyboard();
+  const mark = (on: boolean) => (on ? "✅ " : "");
   for (const mode of Object.keys(MODE_LABELS) as DueMode[]) {
-    kb.text(`${mode === current.due_mode ? "✅ " : ""}${MODE_LABELS[mode]}`, `set:${mode}`).row();
+    kb.text(`${mark(mode === current.due_mode)}${MODE_LABELS[mode]}`, `set:${mode}`).row();
   }
+  kb.text("🌤", "noop");
   for (const lead of WEATHER_LEADS) {
-    const label = lead === 0 ? "Выкл" : `${lead} мин`;
-    kb.text(`${lead === current.weather_lead ? "✅ " : ""}${label}`, `wl:${lead}`);
+    kb.text(`${mark(lead === current.weather_lead)}${lead === 0 ? "Выкл" : `${lead}м`}`, `wl:${lead}`);
+  }
+  kb.row().text("🔔", "noop");
+  for (const hour of REMIND_HOURS) {
+    kb.text(`${mark(hour === current.hw_remind_hour)}${hour === 0 ? "Выкл" : `${hour}:00`}`, `hr:${hour}`);
   }
   return kb;
 }

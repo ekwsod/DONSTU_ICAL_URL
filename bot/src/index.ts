@@ -1,10 +1,12 @@
 import { Api, Bot, InlineKeyboard, webhookCallback, type Context } from "grammy";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
-import { lessonToWarnAbout, morningText, moscowNow } from "./morning";
+import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, reminderText } from "./morning";
 import { Store } from "./store";
 import {
   MAX_WEEK_OFFSET,
+  LEGACY_MENU,
   MENU,
+  REMIND_HOURS,
   SETTINGS_TEXT,
   WEATHER_LEADS,
   dayKeyboard,
@@ -17,13 +19,15 @@ import {
   homeworkText,
   mainMenu,
   settingsKeyboard,
+  shiftDate,
   shortDate,
   todaySummary,
   weekDates,
   weekKeyboard,
   weekTitle,
+  weeksKeyboard,
 } from "./ui";
-import { fetchForecast, weatherBadge, weatherLines, type Forecast } from "./weather";
+import { dayWeather, fetchForecast, weatherBadge, type Forecast } from "./weather";
 import type { DueMode, Env, Homework, Lesson, LessonsPayload, Settings } from "./types";
 
 const todayMoscow = () => moscowNow().date;
@@ -101,6 +105,22 @@ function createBot(env: Env, store: Store): Bot {
     await show(ctx, title, keyboard);
   };
 
+  /** Экран дня: погода, пары со временем, дз. Главный экран бота. */
+  const showDay = async (ctx: Context, date: string) => {
+    const [all, homework, forecast] = await Promise.all([lessonsList(), store.getHomework(), getForecast(store, env)]);
+    if (all.length === 0 && !(await store.getLessons())) {
+      await ctx.reply(NO_SCHEDULE);
+      return;
+    }
+    const lessons = all.filter((l) => l.date === date);
+    const weather = forecast && dayWeather(forecast, date, lessons);
+    await show(ctx, dayText(date, lessons, homework, weather), dayKeyboard(todayMoscow(), date, lessons, homework));
+  };
+
+  const showWeeks = async (ctx: Context) => {
+    await show(ctx, "Какая неделя?", weeksKeyboard(todayMoscow()));
+  };
+
   const showHomeworkList = async (ctx: Context) => {
     const list = openHomework(await store.getHomework());
     await show(ctx, homeworkText(list), homeworkKeyboard(list));
@@ -128,9 +148,10 @@ function createBot(env: Env, store: Store): Bot {
     await store.clearPending();
     await ctx.api
       .setMyCommands([
-        { command: "week", description: "Расписание на эту неделю" },
+        { command: "today", description: "Сегодня: пары и погода" },
+        { command: "week", description: "Выбрать неделю" },
         { command: "hw", description: "Мои дз" },
-        { command: "settings", description: "Настройки: срок дз, погода перед выходом" },
+        { command: "settings", description: "Настройки: срок дз, погода, напоминания" },
         { command: "cancel", description: "Отменить ввод дз" },
       ])
       .catch(() => {});
@@ -143,7 +164,7 @@ function createBot(env: Env, store: Store): Bot {
       forecast && weatherBadge(forecast, today),
     );
     await ctx.reply(summary, { reply_markup: mainMenu() });
-    await showWeek(ctx, 0);
+    await showDay(ctx, today);
   });
 
   // Нажатие кнопки меню прерывает незаконченный ввод дз.
@@ -152,9 +173,16 @@ function createBot(env: Env, store: Store): Bot {
     await handler(ctx);
   };
 
-  bot.command("week", menu((ctx) => showWeek(ctx, 0)));
-  bot.hears(MENU.thisWeek, menu((ctx) => showWeek(ctx, 0)));
-  bot.hears(MENU.nextWeek, menu((ctx) => showWeek(ctx, 1)));
+  bot.command("today", menu((ctx) => showDay(ctx, todayMoscow())));
+  bot.hears(MENU.today, menu((ctx) => showDay(ctx, todayMoscow())));
+  bot.hears(MENU.tomorrow, menu((ctx) => showDay(ctx, shiftDate(todayMoscow(), 1))));
+  bot.command("week", menu(showWeeks));
+  bot.hears(MENU.weeks, menu(showWeeks));
+  // Старые кнопки меню у кого-то ещё на экране — присылаем новое меню и сегодняшний день.
+  bot.hears(LEGACY_MENU, menu(async (ctx) => {
+    await ctx.reply("Меню обновилось 👇", { reply_markup: mainMenu() });
+    await showDay(ctx, todayMoscow());
+  }));
   bot.command("hw", menu(showHomeworkList));
   bot.hears(MENU.homework, menu(showHomeworkList));
   bot.command("settings", menu(showSettings));
@@ -172,14 +200,18 @@ function createBot(env: Env, store: Store): Bot {
     await showWeek(ctx, Math.min(Number(ctx.match[1]), MAX_WEEK_OFFSET));
   });
 
-  bot.callbackQuery(/^d:(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
-    const date = ctx.match[1];
-    const [all, homework, forecast] = await Promise.all([lessonsList(), store.getHomework(), getForecast(store, env)]);
-    const lessons = all.filter((l) => l.date === date);
-    const weather = forecast ? weatherLines(forecast, date, lessons) : [];
+  bot.callbackQuery("wk", async (ctx) => {
     await ctx.answerCallbackQuery();
-    await show(ctx, dayText(date, lessons, homework, weather), dayKeyboard(todayMoscow(), date, lessons, homework));
+    await showWeeks(ctx);
   });
+
+  bot.callbackQuery(/^d:(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await showDay(ctx, ctx.match[1]);
+  });
+
+  // Подписи-иконки в настройках: нажатие ничего не делает.
+  bot.callbackQuery("noop", (ctx) => ctx.answerCallbackQuery());
 
   // --- Добавление дз ---
 
@@ -319,6 +351,12 @@ function createBot(env: Env, store: Store): Bot {
     await updateSettings(ctx, { weather_lead: lead });
   });
 
+  bot.callbackQuery(/^hr:(\d+)$/, async (ctx) => {
+    const hour = Number(ctx.match[1]);
+    if (!REMIND_HOURS.includes(hour)) return ctx.answerCallbackQuery();
+    await updateSettings(ctx, { hw_remind_hour: hour });
+  });
+
   return bot;
 }
 
@@ -340,6 +378,26 @@ async function sendMorningWeather(env: Env): Promise<void> {
   const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
   const text = morningText(first, lessons.filter((l) => l.date === now.date), forecast, homework);
   await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, text, { parse_mode: "HTML" });
+}
+
+/** Cron: накануне срока, в выбранный час, напоминаем о дз на завтра (раз в день). */
+async function sendHomeworkReminder(env: Env): Promise<void> {
+  const store = new Store(env.SCHEDULE);
+  const [homework, settings, lastSent] = await Promise.all([
+    store.getHomework(),
+    store.getSettings(),
+    store.getHomeworkReminded(),
+  ]);
+  const now = moscowNow();
+  const due = homeworkToRemind(now, homework, settings.hw_remind_hour, lastSent);
+  if (due.length === 0) return;
+
+  await store.putHomeworkReminded(now.date);
+  const lessons = (await store.getLessons())?.lessons ?? [];
+  await new Api(env.BOT_TOKEN).sendMessage(env.OWNER_CHAT_ID, reminderText(due, lessons), {
+    parse_mode: "HTML",
+    reply_markup: homeworkKeyboard(due),
+  });
 }
 
 async function handlePush(request: Request, env: Env): Promise<Response> {
@@ -373,6 +431,6 @@ export default {
   },
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(sendMorningWeather(env));
+    ctx.waitUntil(Promise.all([sendMorningWeather(env), sendHomeworkReminder(env)]));
   },
 };
