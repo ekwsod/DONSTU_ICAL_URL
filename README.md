@@ -25,7 +25,7 @@ flowchart LR
 
 ## ⚙️ Настройки в `config.json`
 
-Параметры хранятся в корневом файле [config.json](file:///Users/ekwsod/Projects/schedule-alarm/config.json):
+Параметры хранятся в корневом файле [config.json](config.json):
 ```json
 {
   "subgroup": 1,
@@ -76,7 +76,7 @@ $$\text{target} = \min(\text{время первой пары} - \text{prep\_min
    * Выберите рабочий процесс **Schedule Alarm Pages** и нажмите кнопку **Run workflow** $\rightarrow$ **Branch: main**.
    * После завершения перейдите по адресу:
      `https://<ваш_логин>.github.io/<имя_репозитория>/schedule.json`
-     *(например, `https://ekwsod.github.io/schedule-alarm/schedule.json`)*.
+     *(например, `https://ekwsod.github.io/DONSTU_ICAL_URL/schedule.json`)*.
    * Убедитесь, что возвращается корректный JSON с сегодняшней датой в `for_date`.
 
 ---
@@ -97,7 +97,7 @@ $$\text{target} = \min(\text{время первой пары} - \text{prep\_min
 
 1. **Добавить действие «Текст»**:
    * Введите адрес вашего JSON с параметром защиты от кэширования:
-     `https://ekwsod.github.io/schedule-alarm/schedule.json?t=`
+     `https://ekwsod.github.io/DONSTU_ICAL_URL/schedule.json?t=`
    * Сразу после `=` нажмите на виртуальной клавиатуре на переменную **Текущая дата**.
    * Нажмите на вставленную дату и задайте формат: *Настраиваемый* $\rightarrow$ `yyyyMMddHHmmss`.
 
@@ -155,6 +155,50 @@ $$\text{target} = \min(\text{время первой пары} - \text{prep\_min
 3. Обязательно выберите: **Запускать немедленно** (Run Immediately).
 4. Отключите тумблер: **Уведомлять при запуске** (Notify When Run) $\rightarrow$ Выключено.
 5. На следующем шаге выберите вашу команду **«Синхронизация будильника пар»**.
+
+---
+
+## 🤖 Telegram-бот: расписание на 14 дней и дз
+
+Бот живёт в папке `bot/` (Cloudflare Worker, TypeScript + grammY, хранилище Cloudflare KV) и отвечает только владельцу.
+
+**Откуда берёт пары.** Сам бот iCal не качает. Ночной workflow после расчёта будильника отправляет список пар на 28 дней `POST`-запросом на `/push` с Bearer-токеном, Worker кладёт его в KV. На публичные Pages список пар не попадает.
+
+**Команды**
+* `/week` — сетка на 14 дней (сегодня «•», без пар «·», есть срок дз «📌»), тап открывает день.
+* День — пары и дз к ним, кнопка «➕ дз» у каждой пары, навигация ◀ / ▶.
+* «➕ дз» → текст → срок: к следующей паре, к следующей лекции или другая дата. `/cancel` — отменить ввод.
+* `/hw` — открытые дз по сроку: ✔ готово, 🗑 удалить.
+* `/settings` — режим срока: спрашивать / всегда следующая пара / всегда следующая лекция.
+
+**Секреты**
+
+| Где | Имя | Что это |
+|---|---|---|
+| Cloudflare (`wrangler secret put`) | `BOT_TOKEN` | токен от @BotFather |
+| Cloudflare | `OWNER_CHAT_ID` | твой chat id, остальным бот не отвечает |
+| Cloudflare | `WEBHOOK_SECRET` | случайная строка, Telegram присылает её с каждым update |
+| Cloudflare | `PUSH_TOKEN` | случайная строка для `/push` |
+| GitHub Actions | `BOT_PUSH_URL` | `https://<worker>.workers.dev/push` |
+| GitHub Actions | `BOT_PUSH_TOKEN` | то же значение, что `PUSH_TOKEN` |
+
+**Деплой с нуля** (из папки `bot/`)
+```bash
+npm install
+npx wrangler login
+npx wrangler kv namespace create SCHEDULE   # id вписать в wrangler.toml
+npx wrangler secret put BOT_TOKEN           # и так же остальные три
+npx wrangler deploy
+```
+Затем привязать webhook (токен и секрет вводятся скрыто, в историю не попадают):
+```bash
+read -s T; read -s S
+curl -s "https://api.telegram.org/bot$T/setWebhook" \
+  -d "url=https://<worker>.workers.dev/webhook" -d "secret_token=$S"
+unset T S
+```
+
+**Проверка:** `npm test` (логика срока, сетка, текст дня), `npx tsc --noEmit`. Пары появятся в боте после ближайшего запуска workflow «Schedule Alarm Pages» (можно запустить вручную).
 
 ---
 

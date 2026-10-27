@@ -1,0 +1,7 @@
+name = "donstu-bot"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[kv_namespaces]]
+binding = "SCHEDULE"
+id = "1f6e5381f87d4e46b9261cc599696b44"

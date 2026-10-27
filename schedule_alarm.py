@@ -454,7 +454,7 @@ def fetch_ical_content(url: str, timeout: int = 30, retries: int = 3, backoff_se
     Ссылка на календарь НИКОГДА не выводится в логи или исключения.
     """
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; DSTUScheduleBot/1.0; +https://github.com/ekwsod/schedule-alarm)"
+        "User-Agent": "Mozilla/5.0 (compatible; DSTUScheduleBot/1.0; +https://github.com/ekwsod/DONSTU_ICAL_URL)"
     }
     request = urllib.request.Request(url, headers=headers)
 
