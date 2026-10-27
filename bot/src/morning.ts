@@ -1,4 +1,4 @@
-import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom } from "./ui";
+import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom, weatherQuote } from "./ui";
 import { dayWeather, type Forecast } from "./weather";
 import type { Homework, Lesson } from "./types";
 
@@ -96,7 +96,7 @@ export function morningText(
   const lines = [`⏰ <b>Скоро выходить</b> — первая пара в <b>${first.start}</b>${escapeHtml(where)}`, ""];
 
   const weather = forecast && dayWeather(forecast, first.date, lessons);
-  lines.push(...(weather ? weather.top.map(escapeHtml) : ["Погоду сейчас не получить 🤷"]), "");
+  lines.push(weather ? weatherQuote(weather.top) : "Погоду сейчас не получить 🤷", "");
 
   lines.push(`<b>План на сегодня</b> (${lessons.length} ${lessons.length === 1 ? "пара" : lessons.length < 5 ? "пары" : "пар"}, до ${finish}):`);
   lessons.forEach((lesson, i) => {
@@ -117,7 +117,7 @@ export function morningText(
     }
   });
   lines.push(`🏁 Пары закончатся в ${finish}`);
-  if (weather?.after) lines.push(escapeHtml(weather.after));
+  if (weather?.after) lines.push(weatherQuote([weather.after]));
 
   const loose = due.filter((h) => !lessons.some((l) => l.id === h.due_lesson_id));
   if (loose.length > 0) {

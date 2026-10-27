@@ -154,14 +154,14 @@ describe("dayText", () => {
     expect(escapeHtml("<b>")).toBe("&lt;b&gt;");
   });
 
-  it("погода: сводка под заголовком, после пар — под расписанием", () => {
+  it("погода отдельными плашками: сводка под заголовком, после пар — под расписанием", () => {
     const text = dayText("2026-11-02", [lesson], [hw({ text: "эссе", due_lesson_id: null })], {
       top: ["☁️ пасмурно, +7…+17°"],
       after: "🏠 После пар (10:00): ☀️ +12°",
     });
     const blocks = text.split("\n\n");
-    expect(blocks[0]).toBe("🗓 <b>2 ноября, понедельник</b>\n☁️ пасмурно, +7…+17°");
-    expect(blocks[2]).toBe("🏠 После пар (10:00): ☀️ +12°");
+    expect(blocks[0]).toBe("🗓 <b>2 ноября, понедельник</b>\n<blockquote>☁️ пасмурно, +7…+17°</blockquote>");
+    expect(blocks[2]).toBe("<blockquote>🏠 После пар (10:00): ☀️ +12°</blockquote>");
     expect(blocks[3]).toBe("<b>Дз на этот день</b>\n📝 Математика: эссе");
   });
 

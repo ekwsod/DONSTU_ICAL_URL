@@ -192,6 +192,11 @@ export function formatRoom(room: string): string {
   return match ? `корпус ${match[1]}, ауд. ${match[2]}` : room;
 }
 
+/** Погода — цитатой: Telegram рисует её отдельной плашкой, и она не сливается с парами. */
+export function weatherQuote(lines: string[]): string {
+  return `<blockquote>${lines.map(escapeHtml).join("\n")}</blockquote>`;
+}
+
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -215,7 +220,8 @@ function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
  * время и предмет жирным, под парой — дз со сроком на неё, ниже — погода после пар.
  */
 export function dayText(date: string, lessons: Lesson[], homework: Homework[], weather: DayWeather | null = null): string {
-  const blocks: string[][] = [[`🗓 <b>${longDate(date)}</b>`, ...(weather?.top ?? []).map(escapeHtml)]];
+  const header = `🗓 <b>${longDate(date)}</b>`;
+  const blocks: string[][] = [weather?.top.length ? [header, weatherQuote(weather.top)] : [header]];
   const due = homework.filter((h) => !h.done && h.due_date === date);
 
   if (lessons.length === 0) {
@@ -225,7 +231,7 @@ export function dayText(date: string, lessons: Lesson[], homework: Homework[], w
     blocks.push(lessonBlock(lesson, due.filter((h) => h.due_lesson_id === lesson.id)));
   }
   // Погода после пар — под расписанием, по порядку дня.
-  if (weather?.after) blocks.push([escapeHtml(weather.after)]);
+  if (weather?.after) blocks.push([weatherQuote([weather.after])]);
 
   const loose = due.filter((h) => !lessons.some((l) => l.id === h.due_lesson_id));
   if (loose.length > 0) {
