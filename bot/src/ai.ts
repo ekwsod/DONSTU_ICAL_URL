@@ -57,13 +57,28 @@ const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.sl
 
 // --- Комментарий к плану дня ---
 
-const PLAN_SYSTEM = [
+const PLAN_SYSTEM_BASE = [
   "Ты — помощник студента в Telegram. Тебе дают план его учебного дня: пары, окна, погоду и что сдать.",
   "Напиши 1–2 коротких предложения по-русски, на «ты», по-дружески, можно с лёгкой шуткой.",
-  "Дай практичный совет на сегодня: как одеться и нужен ли зонт, чем занять окно между парами, что не забыть сдать.",
+  "Формат пары (лекция, практика, лаба) — это просто вид занятия, а не задание и не долг.",
   "Не пересказывай расписание. Не называй время, номера пар и аудитории. Не выдумывай того, чего нет в данных.",
   "Без markdown, без списков, без эмодзи. Не длиннее 220 символов.",
+];
+
+const PLAN_SYSTEM_WITH_DUE = [
+  ...PLAN_SYSTEM_BASE,
+  "Дай практичный совет на сегодня: как одеться и нужен ли зонт, чем занять окно между парами.",
+  "Можешь напомнить о том, что есть в разделе «Сдать сегодня», — и только об этом.",
 ].join("\n");
+
+const PLAN_SYSTEM_NO_DUE = [
+  ...PLAN_SYSTEM_BASE,
+  "Дай практичный совет на сегодня: как одеться и нужен ли зонт, чем занять окно между парами.",
+  "Сдавать сегодня нечего: не упоминай сдачу, дз, задания, отчёты и долги.",
+].join("\n");
+
+/** Страховка: дз нет, а модель всё равно про сдачу — такой совет не показываем. */
+const DUE_TALK = /сда[тйюеёв]|сдач|(^|[^а-яё])дз([^а-яё]|$)|домашк|задани|отчёт|отчет|долг/i;
 
 /** Факты для модели: только то, что бот и так показывает, в компактном виде. */
 export function planFacts(lessons: Lesson[], weather: DayWeather | null, due: Homework[]): string {
@@ -75,7 +90,7 @@ export function planFacts(lessons: Lesson[], weather: DayWeather | null, due: Ho
       const gap = minutes(l.start) - minutes(prev.end);
       if (gap > 45) lines.push(`- окно ${gap} мин`);
     }
-    lines.push(`- ${l.start}–${l.end ?? "?"} ${l.title} (${TYPE_LABELS[l.type] || "занятие"})`);
+    lines.push(`- ${l.start}–${l.end ?? "?"} ${l.title}, формат: ${TYPE_LABELS[l.type] || "занятие"}`);
   });
   if (weather) lines.push("Погода:", ...weather.top.map((w) => `- ${w}`), ...(weather.after ? [`- ${weather.after}`] : []));
   if (due.length > 0) {
@@ -85,6 +100,9 @@ export function planFacts(lessons: Lesson[], weather: DayWeather | null, due: Ho
       return index >= 0 ? ` (сдать на ${index + 1}-й паре дня)` : "";
     };
     lines.push("Сдать сегодня:", ...due.map((h) => `- ${h.title}: ${h.text}${at(h)}`));
+  } else {
+    // Явно: иначе модель додумывает задание по формату пары («лаба» → «сдай лабу»).
+    lines.push("Сдать сегодня: ничего");
   }
   return lines.join("\n");
 }
@@ -110,10 +128,12 @@ export async function planComment(
   due: Homework[],
 ): Promise<string | null> {
   const answer = await run([
-    { role: "system", content: PLAN_SYSTEM },
+    { role: "system", content: due.length > 0 ? PLAN_SYSTEM_WITH_DUE : PLAN_SYSTEM_NO_DUE },
     { role: "user", content: planFacts(lessons, weather, due) },
   ]);
-  return answer ? cleanComment(answer) : null;
+  const clean = answer ? cleanComment(answer) : null;
+  if (clean && due.length === 0 && DUE_TALK.test(clean)) return null;
+  return clean;
 }
 
 // --- Разбор дз из свободного текста ---

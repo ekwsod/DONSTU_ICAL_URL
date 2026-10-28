@@ -215,8 +215,32 @@ describe("комментарий к плану", () => {
 
   it("факты для модели: пары по порядку и на какой паре сдавать (без времени сдачи)", () => {
     const facts = planFacts(today, { top: ["☁️ пасмурно, +7…+17°"], after: null }, [due]);
-    expect(facts).toContain("- 08:30–? Химия (лаба)\n- 10:15–? Высшая математика (лекция)");
+    expect(facts).toContain("- 08:30–? Химия, формат: лаба\n- 10:15–? Высшая математика, формат: лекция");
     expect(facts).toContain("- Химия: отчёт по лабе (сдать на 1-й паре дня)");
+  });
+
+  it("без дз модели прямо сказано, что сдавать нечего", async () => {
+    expect(planFacts(today, null, [])).toContain("Сдать сегодня: ничего");
+    const { run, calls } = fakeRunner("Одевайся теплее");
+    await planComment(run, today, null, []);
+    expect(calls[0][0][0].content).toContain("Сдавать сегодня нечего");
+  });
+
+  it("дз нет, а модель придумала сдачу по формату пары — совет не показываем", async () => {
+    expect(await planComment(fakeRunner("Не забудь сдать лабу по химии").run, today, null, [])).toBeNull();
+    expect(await planComment(fakeRunner("Не забудь отчёт по лабе").run, today, null, [])).toBeNull();
+    expect(await planComment(fakeRunner("На лабе не скучай, а зонт возьми").run, today, null, [])).toBe(
+      "На лабе не скучай, а зонт возьми",
+    );
+    expect(await planComment(fakeRunner("Подзаряди телефон в окно").run, today, null, [])).toBe(
+      "Подзаряди телефон в окно",
+    );
+  });
+
+  it("дз есть — напоминание о сдаче остаётся", async () => {
+    expect(await planComment(fakeRunner("Не забудь сдать отчёт по химии").run, today, null, [due])).toBe(
+      "Не забудь сдать отчёт по химии",
+    );
   });
 
   it("чистит ответ: размышления, markdown, кавычки, длину", () => {
