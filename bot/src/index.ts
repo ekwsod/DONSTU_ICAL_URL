@@ -3,7 +3,6 @@ import {
   draftHomework,
   draftText,
   draftToHomework,
-  planComment,
   resolveDue,
   subjectsFrom,
   workersAiRunner,
@@ -507,16 +506,12 @@ function createBot(env: Env, store: Store): Bot {
   return bot;
 }
 
-/** Cron: если до первой пары осталось не больше weather_lead минут — пишем погоду (раз в день). */
-/** План дня перед выходом (тот же, что шлёт cron): погода, пары, окна, дз и совет от ИИ. null — в этот день пар нет. */
+/** План дня перед выходом (тот же, что шлёт cron): погода, пары, окна и дз. null — в этот день пар нет. */
 async function buildPlan(env: Env, store: Store, lessons: Lesson[], date: string): Promise<string | null> {
   const day = lessons.filter((l) => l.date === date).sort((a, b) => a.start.localeCompare(b.start));
   if (day.length === 0) return null;
   const [forecast, homework] = await Promise.all([getForecast(store, env), store.getHomework()]);
-  const due = homework.filter((h) => !h.done && h.due_date === date);
-  // Без ИИ план всё равно уйдёт — просто без строки 💬.
-  const comment = await planComment(workersAiRunner(env.AI), day, forecast && dayWeather(forecast, date, day), due);
-  return morningText(day[0], day, forecast, homework, comment);
+  return morningText(day[0], day, forecast, homework);
 }
 
 async function sendMorningWeather(env: Env): Promise<void> {

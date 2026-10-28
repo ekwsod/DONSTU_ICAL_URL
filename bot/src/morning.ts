@@ -89,7 +89,6 @@ export function morningText(
   todayLessons: Lesson[],
   forecast: Forecast | null,
   homework: Homework[],
-  comment: string | null = null,
 ): string {
   const lessons = [...todayLessons].sort((a, b) => a.start.localeCompare(b.start));
   const due = homework.filter((h) => !h.done && h.due_date === first.date);
@@ -134,7 +133,6 @@ export function morningText(
   if (loose.length > 0) {
     add("<b>Ещё сдать сегодня:</b>", ...loose.map((h) => `📝 ${escapeHtml(h.title)}: ${escapeHtml(h.text)}`));
   }
-  if (comment) add(`💬 <i>${escapeHtml(comment)}</i>`);
 
   return blocks
     .map((b, i) => (i === 0 ? b.text : `${b.quote || blocks[i - 1].quote ? "\n" : "\n\n"}${b.text}`))

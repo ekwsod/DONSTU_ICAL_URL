@@ -1,6 +1,5 @@
 import { findNextLesson } from "./schedule";
 import { TYPE_LABELS, formatRoom, shiftDate, shortDate } from "./ui";
-import type { DayWeather } from "./weather";
 import type { DueMode, Homework, Lesson } from "./types";
 
 /**
@@ -51,89 +50,6 @@ export function workersAiRunner(ai: Ai, model: string = AI_MODEL): AiRunner {
 export function stripThinking(text: string): string | null {
   const clean = text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^[\s\S]*<\/think>/, "").trim();
   return clean || null;
-}
-
-const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-
-// --- Комментарий к плану дня ---
-
-const PLAN_SYSTEM_BASE = [
-  "Ты — помощник студента в Telegram. Тебе дают план его учебного дня: пары, окна, погоду и что сдать.",
-  "Напиши 1–2 коротких предложения по-русски, на «ты», по-дружески, можно с лёгкой шуткой.",
-  "Формат пары (лекция, практика, лаба) — это просто вид занятия, а не задание и не долг.",
-  "Не пересказывай расписание. Не называй время, номера пар и аудитории. Не выдумывай того, чего нет в данных.",
-  "Без markdown, без списков, без эмодзи. Не длиннее 220 символов.",
-];
-
-const PLAN_SYSTEM_WITH_DUE = [
-  ...PLAN_SYSTEM_BASE,
-  "Дай практичный совет на сегодня: как одеться и нужен ли зонт, чем занять окно между парами.",
-  "Можешь напомнить о том, что есть в разделе «Сдать сегодня», — и только об этом.",
-].join("\n");
-
-const PLAN_SYSTEM_NO_DUE = [
-  ...PLAN_SYSTEM_BASE,
-  "Дай практичный совет на сегодня: как одеться и нужен ли зонт, чем занять окно между парами.",
-  "Сдавать сегодня нечего: не упоминай сдачу, дз, задания, отчёты и долги.",
-].join("\n");
-
-/** Страховка: дз нет, а модель всё равно про сдачу — такой совет не показываем. */
-const DUE_TALK = /сда[тйюеёв]|сдач|(^|[^а-яё])дз([^а-яё]|$)|домашк|задани|отчёт|отчет|долг/i;
-
-/** Факты для модели: только то, что бот и так показывает, в компактном виде. */
-export function planFacts(lessons: Lesson[], weather: DayWeather | null, due: Homework[]): string {
-  const sorted = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
-  const lines = ["Пары:"];
-  sorted.forEach((l, i) => {
-    const prev = sorted[i - 1];
-    if (prev?.end) {
-      const gap = minutes(l.start) - minutes(prev.end);
-      if (gap > 45) lines.push(`- окно ${gap} мин`);
-    }
-    lines.push(`- ${l.start}–${l.end ?? "?"} ${l.title}, формат: ${TYPE_LABELS[l.type] || "занятие"}`);
-  });
-  if (weather) lines.push("Погода:", ...weather.top.map((w) => `- ${w}`), ...(weather.after ? [`- ${weather.after}`] : []));
-  if (due.length > 0) {
-    // Номер пары по порядку, а не время: модели запрещено называть время.
-    const at = (h: Homework) => {
-      const index = sorted.findIndex((l) => l.id === h.due_lesson_id);
-      return index >= 0 ? ` (сдать на ${index + 1}-й паре дня)` : "";
-    };
-    lines.push("Сдать сегодня:", ...due.map((h) => `- ${h.title}: ${h.text}${at(h)}`));
-  } else {
-    // Явно: иначе модель додумывает задание по формату пары («лаба» → «сдай лабу»).
-    lines.push("Сдать сегодня: ничего");
-  }
-  return lines.join("\n");
-}
-
-/** Убираем то, что модель могла добавить вопреки инструкции: кавычки, markdown, лишнюю длину. */
-export function cleanComment(text: string): string | null {
-  let clean = text
-    .replace(/<think>[\s\S]*?<\/think>/g, "")
-    .replace(/[*_`#]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^["«]|["»]$/g, "");
-  if (!clean) return null;
-  clean = clean[0].toUpperCase() + clean.slice(1);
-  if (clean.length > 300) clean = `${clean.slice(0, 297).replace(/\s+\S*$/, "")}…`;
-  return clean;
-}
-
-export async function planComment(
-  run: AiRunner,
-  lessons: Lesson[],
-  weather: DayWeather | null,
-  due: Homework[],
-): Promise<string | null> {
-  const answer = await run([
-    { role: "system", content: due.length > 0 ? PLAN_SYSTEM_WITH_DUE : PLAN_SYSTEM_NO_DUE },
-    { role: "user", content: planFacts(lessons, weather, due) },
-  ]);
-  const clean = answer ? cleanComment(answer) : null;
-  if (clean && due.length === 0 && DUE_TALK.test(clean)) return null;
-  return clean;
 }
 
 // --- Разбор дз из свободного текста ---
