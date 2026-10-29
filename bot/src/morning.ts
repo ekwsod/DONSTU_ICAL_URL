@@ -1,4 +1,4 @@
-import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom, weatherQuote } from "./ui";
+import { PAIR_NUMBERS, TYPE_ICONS, TYPE_LABELS, escapeHtml, formatRoom, weatherQuote, windowLine } from "./ui";
 import { dayWeather, type Forecast } from "./weather";
 import type { Homework, Lesson } from "./types";
 
@@ -70,16 +70,6 @@ export function reminderText(due: Homework[], lessons: Lesson[]): string {
   return lines.join("\n");
 }
 
-/** Перерыв длиннее этого — «окно» (обычная перемена 10 мин, обед 40 мин). */
-const WINDOW_MINUTES = 45;
-
-function duration(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  if (h === 0) return `${m} мин`;
-  return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
-}
-
 /**
  * Сообщение перед выходом — план на день: погода, затем все пары по порядку
  * (номер, время, предмет, куда идти, что сдать), окна между парами и когда всё закончится.
@@ -109,11 +99,8 @@ export function morningText(
   else add("Погоду сейчас не получить 🤷");
 
   lessons.forEach((lesson, i) => {
-    const prev = lessons[i - 1];
-    if (prev?.end) {
-      const gap = minutes(lesson.start) - minutes(prev.end);
-      if (gap > WINDOW_MINUTES) add(`☕ Окно ${prev.end}–${lesson.start} · ${duration(gap)}`);
-    }
+    const gap = windowLine(lessons[i - 1], lesson);
+    if (gap) add(gap);
     const number = PAIR_NUMBERS[lesson.start];
     const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
     const type = TYPE_LABELS[lesson.type] ? ` · <i>${TYPE_LABELS[lesson.type]}</i>` : "";

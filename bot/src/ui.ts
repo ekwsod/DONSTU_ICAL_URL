@@ -203,6 +203,25 @@ export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Перерыв длиннее этого — «окно» (обычная перемена 10 мин, обед 40 мин). */
+const WINDOW_MINUTES = 45;
+
+const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+function duration(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} мин`;
+  return m === 0 ? `${h} ч` : `${h} ч ${m} мин`;
+}
+
+/** Строка «☕ Окно …» между двумя парами подряд; null — обычная перемена или неизвестен конец пары. */
+export function windowLine(prev: Lesson | undefined, next: Lesson): string | null {
+  if (!prev?.end) return null;
+  const gap = minutes(next.start) - minutes(prev.end);
+  return gap > WINDOW_MINUTES ? `☕ Окно ${prev.end}–${next.start} · ${duration(gap)}` : null;
+}
+
 function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
   const time = lesson.end ? `${lesson.start}–${lesson.end}` : lesson.start;
   const number = PAIR_NUMBERS[lesson.start];
@@ -219,7 +238,7 @@ function lessonBlock(lesson: Lesson, homework: Homework[]): string[] {
 
 /**
  * Текст дня (HTML): заголовок с погодой, каждая пара — отдельный блок через пустую строку,
- * время и предмет жирным, под парой — дз со сроком на неё, ниже — погода после пар.
+ * между парами — окна, время и предмет жирным, под парой — дз со сроком на неё, ниже — погода после пар.
  */
 export function dayText(date: string, lessons: Lesson[], homework: Homework[], weather: DayWeather | null = null): string {
   const header = `🗓 <b>${longDate(date)}</b>`;
@@ -229,9 +248,12 @@ export function dayText(date: string, lessons: Lesson[], homework: Homework[], w
   if (lessons.length === 0) {
     blocks.push(["Пар нет 🎉"]);
   }
-  for (const lesson of lessons) {
+  const sorted = [...lessons].sort((a, b) => a.start.localeCompare(b.start));
+  sorted.forEach((lesson, i) => {
+    const gap = windowLine(sorted[i - 1], lesson);
+    if (gap) blocks.push([gap]);
     blocks.push(lessonBlock(lesson, due.filter((h) => h.due_lesson_id === lesson.id)));
-  }
+  });
   // Погода после пар — под расписанием, по порядку дня.
   if (weather?.after) blocks.push([weatherQuote([weather.after])]);
 
