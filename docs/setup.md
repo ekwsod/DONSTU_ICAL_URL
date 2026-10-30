@@ -25,6 +25,8 @@ Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 1. Actions → Schedule Alarm Pages → Run workflow (ветка `main`).
 2. Откройте `https://<логин>.github.io/<репозиторий>/schedule.json` и убедитесь, что `for_date` — сегодняшняя дата.
 
+Основной `schedule.json` для iPhone теперь считает бот: `https://<worker>.workers.dev/schedule.json` (секрет `ICAL_URL` у Worker, см. [bot/README.md](../bot/README.md)). GitHub Actions — запасной путь: его ночные запуски GitHub нередко задерживает на 2–3 часа.
+
 ## Workflows
 
 - [`schedule.yml`](../.github/workflows/schedule.yml) — в 23:00 и 23:30 UTC (02:00 и 02:30 по Москве) прогоняет тесты, запускает `schedule_alarm.py` с секретами из таблицы выше и публикует `public/` на Pages. Второй запуск — повтор на случай, если портал ДГТУ не ответил.
@@ -105,7 +107,7 @@ python3 schedule_alarm.py --file calendar.ics --today 2026-11-02 --output out/sc
 
 ## Если что-то сломалось
 
-**Будильники не переключились, пришло «Расписание не обновилось».** Команда на iPhone сверяет `for_date` с текущей датой и при несовпадении ничего не меняет. Проверьте ночные запуски во вкладке Actions: чаще всего портал ДГТУ был недоступен. Запустите Schedule Alarm Pages вручную.
+**Будильники не переключились, пришло «Расписание не обновилось».** Команда на iPhone сверяет `for_date` с текущей датой и при несовпадении ничего не меняет. Посмотрите логи Worker (`npx wrangler tail` в `bot/`, строки `schedule sync`): чаще всего портал ДГТУ был недоступен. Пересчитать сразу: `curl -X POST -H "Authorization: Bearer <PUSH_TOKEN>" https://<worker>.workers.dev/sync`.
 
 **Расписание перестало запускаться по ночам.** Вероятно, GitHub отключил его за неактивность — см. раздел «Keepalive».
 

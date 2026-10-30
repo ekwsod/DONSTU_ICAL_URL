@@ -1,3 +1,4 @@
+import type { AlarmPayload } from "./alarm";
 import type { Homework, LessonsPayload, Pending, Settings } from "./types";
 import type { Forecast } from "./weather";
 
@@ -9,6 +10,7 @@ const KEYS = {
   weather: "weather",
   weatherSent: "weather_sent",
   homeworkReminded: "hw_reminded",
+  alarm: "alarm",
 } as const;
 
 /** Прогноз живёт в KV час, потом запрашивается заново. */
@@ -61,6 +63,15 @@ export class Store {
 
   putLessons(payload: LessonsPayload): Promise<void> {
     return this.write(KEYS.lessons, payload);
+  }
+
+  /** schedule.json для быстрой команды iPhone. */
+  getAlarm(): Promise<AlarmPayload | null> {
+    return this.read<AlarmPayload>(KEYS.alarm);
+  }
+
+  putAlarm(payload: AlarmPayload): Promise<void> {
+    return this.write(KEYS.alarm, payload);
   }
 
   async getHomework(): Promise<Homework[]> {

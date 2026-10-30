@@ -18,10 +18,10 @@
 
 ## Архитектура
 
-- **Расписание.** Бот сам iCal не скачивает. Ночной workflow `schedule.yml` после расчёта будильника отправляет пары на 28 дней (`lessons_horizon_days` в `config.json`) запросом `POST /push` с заголовком `Authorization: Bearer <PUSH_TOKEN>`. Worker сохраняет их в KV. На публичные Pages полный список пар не попадает.
+- **Расписание и будильник.** Worker сам скачивает iCal по секрету `ICAL_URL` ночью в 02:00 и 03:30 по Москве (и сразу, если файла на сегодня нет; при ошибке — повтор каждые 5 минут). Он считает `schedule.json` для быстрой команды iPhone и отдаёт его по `GET /schedule.json`, а пары на 28 дней (`lessons_horizon_days`) кладёт в KV. Логика — перенос `schedule_alarm.py` в `src/alarm.ts` с общим `config.json`; совпадение с Python проверяют `test/alarm.test.ts` и `tests/test_parity.py` на одном календаре `test/fixtures/parity.json`. Ночной workflow GitHub по-прежнему шлёт пары в `POST /push` (`Authorization: Bearer <PUSH_TOKEN>`) — как запасной путь. `POST /sync` с тем же токеном пересчитывает всё сразу.
 - **Telegram.** Обновления приходят на `POST /webhook`; grammY проверяет заголовок `X-Telegram-Bot-Api-Secret-Token` по `WEBHOOK_SECRET`. Остальные пути отвечают 404.
 - **Хранилище.** Cloudflare KV, привязка `SCHEDULE`. Пользователь один, поэтому каждая сущность — один JSON-ключ: пары, дз, настройки, незаконченный ввод, кеш погоды, отметки об отправленных сообщениях.
-- **Cron Trigger** `*/5 * * * *` — раз в пять минут проверяет, не пора ли отправить план перед выходом или напоминание о дз. Время в cron — UTC, решение принимается по московскому времени; каждое сообщение отправляется не чаще раза в день.
+- **Cron Trigger** `*/5 * * * *` — раз в пять минут проверяет, не пора ли пересчитать будильник, отправить план перед выходом или напоминание о дз. Время в cron — UTC, решение принимается по московскому времени; каждое сообщение отправляется не чаще раза в день.
 - **Погода** — [Open-Meteo](https://open-meteo.com), бесплатно и без ключа. Координаты главного корпуса заданы в `wrangler.toml` (`WEATHER_LAT`, `WEATHER_LON`), прогноз кешируется в KV на час.
 - **Модель** — Workers AI (привязка `AI`), `@cf/meta/llama-3.3-70b-instruct-fp8-fast`: бесплатна на тарифе Workers Free и отвечает примерно за 2 секунды. Модели DeepSeek V4 на бесплатном тарифе недоступны, а бесплатный DeepSeek R1 Distill отвечает 8–12 секунд и не выдаёт корректный JSON для разбора дз. Модель меняется константой `AI_MODEL` в `src/ai.ts`.
 
@@ -29,7 +29,8 @@
 
 | Файл | Содержимое |
 |---|---|
-| `src/index.ts` | обработчики Telegram, `/push`, `/webhook`, cron |
+| `src/index.ts` | обработчики Telegram, `/push`, `/sync`, `/schedule.json`, `/webhook`, cron |
+| `src/alarm.ts` | разбор iCal, расчёт будильника и списка пар (как `schedule_alarm.py`) |
 | `src/ui.ts` | тексты и клавиатуры |
 | `src/ai.ts` | запросы к Workers AI и проверка ответов |
 | `src/homework.ts`, `src/schedule.ts` | сроки дз, поиск следующей пары |
@@ -44,7 +45,8 @@
 | Cloudflare (`wrangler secret put`) | `BOT_TOKEN` | токен от @BotFather |
 | Cloudflare | `OWNER_CHAT_ID` | chat id владельца; остальным бот не отвечает |
 | Cloudflare | `WEBHOOK_SECRET` | случайная строка, Telegram присылает её с каждым обновлением |
-| Cloudflare | `PUSH_TOKEN` | случайная строка для `/push` |
+| Cloudflare | `PUSH_TOKEN` | случайная строка для `/push` и `/sync` |
+| Cloudflare | `ICAL_URL` | ссылка на iCal группы, то же, что `DONSTU_ICAL_URL` в GitHub |
 | GitHub Actions | `BOT_PUSH_URL` | `https://<worker>.workers.dev/push` |
 | GitHub Actions | `BOT_PUSH_TOKEN` | то же значение, что `PUSH_TOKEN` |
 
@@ -56,7 +58,7 @@
 npm ci
 npx wrangler login
 npx wrangler kv namespace create SCHEDULE   # полученный id вписать в wrangler.toml
-npx wrangler secret put BOT_TOKEN           # так же OWNER_CHAT_ID, WEBHOOK_SECRET, PUSH_TOKEN
+npx wrangler secret put BOT_TOKEN           # так же OWNER_CHAT_ID, WEBHOOK_SECRET, PUSH_TOKEN, ICAL_URL
 npx wrangler deploy
 ```
 

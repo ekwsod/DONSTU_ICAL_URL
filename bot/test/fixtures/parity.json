@@ -1,0 +1,214 @@
+{
+  "_comment": "Календарь с трудными случаями и результат schedule_alarm.py на нём (Config.load(), сегодня 2026-11-02). Worker обязан совпадать.",
+  "ics": "﻿BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//DSTU//Schedule//RU\nBEGIN:VEVENT\nUID:a1\nDTSTART:20261102T083000\nDTEND:20261102T100500\nSUMMARY:лаб Физика п/г 2 Иванов И. И.\nLOCATION:1-143\nEND:VEVENT\nBEGIN:VEVENT\nUID:a2\nDTSTART:20261102T071500Z\nDTEND:20261102T085000Z\nSUMMARY:лек Высшая матем\n атика Петров А.Б.\nLOCATION:8-402\nEND:VEVENT\nBEGIN:VEVENT\nUID:a3\nDTSTART:20261102T120000\nDTEND:20261102T133500\nSUMMARY:пр Информатика (п/г 1) БВТ2101\nLOCATION:1-111\nEND:VEVENT\nBEGIN:VEVENT\nUID:a4\nDTSTART:20261102T141500\nDTEND:20261102T155000\nSUMMARY:Русский язык как иностранный\nLOCATION:2-200\nEND:VEVENT\nBEGIN:VEVENT\nUID:b1\nDTSTART:20261103T080000\nDTEND:20261103T093500\nSUMMARY:Лекция История России гр. ИСТ-31\nLOCATION:манеж\nEND:VEVENT\nBEGIN:VEVENT\nUID:b2\nDTSTART:20261103T094500\nDTEND:20261103T112000\nSUMMARY:пр Русского языка как иностранного\nLOCATION:3-301\nEND:VEVENT\nBEGIN:VEVENT\nUID:b3\nDTSTART:20261103T113000\nDTEND:20261103T130500\nSUMMARY:Лаб. Химия 2 п/г\nLOCATION:4-404\nEND:VEVENT\nBEGIN:VEVENT\nUID:b4\nDTSTART:20261103T113000\nDTEND:20261103T130500\nSUMMARY:Лаб. Химия подгруппа 1\nLOCATION:4-405\nEND:VEVENT\nBEGIN:VEVENT\nUID:c1\nDTSTART:20261104T141500\nSUMMARY:практика Философия\\, логика\\; этика\nLOCATION:Главный корпус\\, ауд. 5\nEND:VEVENT\nBEGIN:VEVENT\nUID:c2\nDTSTART:20261104T160000\nDTEND:20261104T173500\nSUMMARY:Иностранный язык (английский) РКИ-группа\nLOCATION:5-505\nEND:VEVENT\nBEGIN:VEVENT\nUID:c3\nDTSTART:20261104T120000\nDTEND:20261104T133500\nSUMMARY:Физическая культура и спорт\nLOCATION:\nEND:VEVENT\nBEGIN:VEVENT\nUID:d1\nDTSTART:20261105T060000Z\nDTEND:20261105T073500Z\nSUMMARY:Пр. Экономика\nLOCATION:6-606\nEND:VEVENT\nBEGIN:VEVENT\nUID:d2\nDTSTART:20261105T101500\nDTEND:20261105T115000\nSUMMARY:лек Экономика\nLOCATION:6-606\nEND:VEVENT\nBEGIN:VEVENT\nUID:x1\nDTSTART;VALUE=DATE:20261106\nSUMMARY:День здоровья\nEND:VEVENT\nBEGIN:VEVENT\nUID:x2\nDTSTART:20261106T101500\nDTEND:20261106T115000\nSUMMARY:\nLOCATION:7-707\nEND:VEVENT\nEND:VCALENDAR\n",
+  "days": {
+    "2026-11-01": {
+      "for_date": "2026-11-01",
+      "has_lessons": false,
+      "first_lesson": null,
+      "first_title": null,
+      "first_room": null,
+      "lessons_count": 0,
+      "alarm_slot": null,
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Пар нет, будильник выключен"
+    },
+    "2026-11-02": {
+      "for_date": "2026-11-02",
+      "has_lessons": true,
+      "first_lesson": "10:15",
+      "first_title": "лек Высшая математика",
+      "first_room": "8-402",
+      "lessons_count": 2,
+      "alarm_slot": "08:45",
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Первая пара в 10:15, будильник на 08:45"
+    },
+    "2026-11-03": {
+      "for_date": "2026-11-03",
+      "has_lessons": true,
+      "first_lesson": "08:00",
+      "first_title": "Лекция История России",
+      "first_room": "манеж",
+      "lessons_count": 2,
+      "alarm_slot": "07:00",
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": "Первая пара в 08:00 — будильник на 07:00 может быть поздним (расчётное время 06:30)",
+      "notification": "Первая пара в 08:00, будильник на 07:00. Внимание: Первая пара в 08:00 — будильник на 07:00 может быть поздним (расчётное время 06:30)"
+    },
+    "2026-11-04": {
+      "for_date": "2026-11-04",
+      "has_lessons": true,
+      "first_lesson": "12:00",
+      "first_title": "Физическая культура и спорт",
+      "first_room": null,
+      "lessons_count": 2,
+      "alarm_slot": "10:00",
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Первая пара в 12:00, будильник на 10:00"
+    },
+    "2026-11-05": {
+      "for_date": "2026-11-05",
+      "has_lessons": true,
+      "first_lesson": "09:00",
+      "first_title": "Пр. Экономика",
+      "first_room": "6-606",
+      "lessons_count": 2,
+      "alarm_slot": "07:00",
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Первая пара в 09:00, будильник на 07:00"
+    },
+    "2026-11-06": {
+      "for_date": "2026-11-06",
+      "has_lessons": true,
+      "first_lesson": "10:15",
+      "first_title": null,
+      "first_room": "7-707",
+      "lessons_count": 1,
+      "alarm_slot": "08:45",
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Первая пара в 10:15, будильник на 08:45"
+    },
+    "2026-11-07": {
+      "for_date": "2026-11-07",
+      "has_lessons": false,
+      "first_lesson": null,
+      "first_title": null,
+      "first_room": null,
+      "lessons_count": 0,
+      "alarm_slot": null,
+      "all_slots": [
+        "07:00",
+        "08:45",
+        "10:00"
+      ],
+      "warning": null,
+      "notification": "Пар нет, будильник выключен"
+    }
+  },
+  "lessons": {
+    "from": "2026-11-02",
+    "to": "2026-11-29",
+    "lessons": [
+      {
+        "id": "dacd3ec28f64ddf4",
+        "date": "2026-11-02",
+        "start": "10:15",
+        "end": "11:50",
+        "title": "Высшая математика",
+        "subject_key": "высшая математика",
+        "type": "lecture",
+        "room": "8-402"
+      },
+      {
+        "id": "ab99f7607a1ec8fc",
+        "date": "2026-11-02",
+        "start": "12:00",
+        "end": "13:35",
+        "title": "Информатика",
+        "subject_key": "информатика",
+        "type": "practice",
+        "room": "1-111"
+      },
+      {
+        "id": "d5b7bdf8c464ec51",
+        "date": "2026-11-03",
+        "start": "08:00",
+        "end": "09:35",
+        "title": "История России",
+        "subject_key": "история россии",
+        "type": "lecture",
+        "room": "манеж"
+      },
+      {
+        "id": "2deebe3ee93edbad",
+        "date": "2026-11-03",
+        "start": "11:30",
+        "end": "13:05",
+        "title": "Химия",
+        "subject_key": "химия",
+        "type": "lab",
+        "room": "4-405"
+      },
+      {
+        "id": "54d4671ee151c65c",
+        "date": "2026-11-04",
+        "start": "12:00",
+        "end": "13:35",
+        "title": "Физическая культура и спорт",
+        "subject_key": "физическая культура и спорт",
+        "type": "other",
+        "room": null
+      },
+      {
+        "id": "9a78b50aeb8ad0fb",
+        "date": "2026-11-04",
+        "start": "14:15",
+        "end": null,
+        "title": "Философия, логика; этика",
+        "subject_key": "философия логика этика",
+        "type": "practice",
+        "room": "Главный корпус, ауд. 5"
+      },
+      {
+        "id": "58432cb63dd7d924",
+        "date": "2026-11-05",
+        "start": "09:00",
+        "end": "10:35",
+        "title": "Экономика",
+        "subject_key": "экономика",
+        "type": "practice",
+        "room": "6-606"
+      },
+      {
+        "id": "e421369e6d849625",
+        "date": "2026-11-05",
+        "start": "10:15",
+        "end": "11:50",
+        "title": "Экономика",
+        "subject_key": "экономика",
+        "type": "lecture",
+        "room": "6-606"
+      },
+      {
+        "id": "3dfadaf57af10c68",
+        "date": "2026-11-06",
+        "start": "10:15",
+        "end": "11:50",
+        "title": null,
+        "subject_key": null,
+        "type": "other",
+        "room": "7-707"
+      }
+    ]
+  }
+}

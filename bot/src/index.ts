@@ -8,6 +8,7 @@ import {
   workersAiRunner,
   type HomeworkDraft,
 } from "./ai";
+import { alarmPayload, alarmSyncDue, fetchIcal, lessonsPayload } from "./alarm";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
 import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, nextStudyDate, reminderText } from "./morning";
 import { Store } from "./store";
@@ -552,9 +553,54 @@ async function sendHomeworkReminder(env: Env): Promise<void> {
   });
 }
 
+/** Скачивает iCal и обновляет будильник и пары. В лог — только числа: без ссылки и названий. */
+async function syncSchedule(env: Env, store: Store): Promise<string> {
+  if (!env.ICAL_URL) throw new Error("ICAL_URL не задан");
+  const events = await fetchIcal(env.ICAL_URL);
+  const now = moscowNow();
+  const generatedAt = `${now.date}T${now.time}:00+03:00`;
+  const alarm = alarmPayload(events, now.date, generatedAt);
+  const lessons = await lessonsPayload(events, now.date, generatedAt);
+  await Promise.all([store.putAlarm(alarm), store.putLessons(lessons)]);
+  const summary = `${alarm.for_date}: будильник ${alarm.alarm_slot ?? "выкл."}, пар в окне ${lessons.lessons.length}`;
+  console.log(`schedule sync ok — ${summary}`);
+  return summary;
+}
+
+/** Cron: ночью (и если файла на сегодня ещё нет) пересчитываем будильник. Ошибка — повтор через 5 минут. */
+async function syncAlarmIfDue(env: Env): Promise<void> {
+  if (!env.ICAL_URL) return;
+  const store = new Store(env.SCHEDULE);
+  if (!alarmSyncDue(moscowNow(), await store.getAlarm())) return;
+  try {
+    await syncSchedule(env, store);
+  } catch (err) {
+    console.error("schedule sync failed", err instanceof Error ? err.message : "unknown");
+  }
+}
+
+async function handleScheduleJson(env: Env): Promise<Response> {
+  const alarm = await new Store(env.SCHEDULE).getAlarm();
+  if (!alarm) return new Response("not ready", { status: 503 });
+  return new Response(JSON.stringify(alarm, null, 2), {
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
+const authorized = (request: Request, env: Env) => request.headers.get("Authorization") === `Bearer ${env.PUSH_TOKEN}`;
+
+/** Ручной пересчёт (тем же токеном, что /push): проверить, что портал отвечает Cloudflare. */
+async function handleSync(request: Request, env: Env): Promise<Response> {
+  if (!authorized(request, env)) return new Response("unauthorized", { status: 401 });
+  try {
+    return new Response(`ok — ${await syncSchedule(env, new Store(env.SCHEDULE))}`);
+  } catch (err) {
+    return new Response(`failed: ${err instanceof Error ? err.message : "unknown"}`, { status: 502 });
+  }
+}
+
 async function handlePush(request: Request, env: Env): Promise<Response> {
-  const auth = request.headers.get("Authorization");
-  if (auth !== `Bearer ${env.PUSH_TOKEN}`) {
+  if (!authorized(request, env)) {
     return new Response("unauthorized", { status: 401 });
   }
   const payload = (await request.json()) as LessonsPayload;
@@ -573,6 +619,14 @@ export default {
       return handlePush(request, env);
     }
 
+    if (request.method === "GET" && url.pathname === "/schedule.json") {
+      return handleScheduleJson(env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/sync") {
+      return handleSync(request, env);
+    }
+
     if (request.method === "POST" && url.pathname === "/webhook") {
       const bot = createBot(env, new Store(env.SCHEDULE));
       const handle = webhookCallback(bot, "cloudflare-mod", { secretToken: env.WEBHOOK_SECRET });
@@ -583,6 +637,6 @@ export default {
   },
 
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(Promise.all([sendMorningWeather(env), sendHomeworkReminder(env)]));
+    ctx.waitUntil(Promise.all([syncAlarmIfDue(env), sendMorningWeather(env), sendHomeworkReminder(env)]));
   },
 };

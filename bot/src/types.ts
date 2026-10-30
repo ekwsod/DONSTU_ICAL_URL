@@ -7,6 +7,8 @@ export interface Env {
   OWNER_CHAT_ID: string;
   WEBHOOK_SECRET: string;
   PUSH_TOKEN: string;
+  /** Ссылка на iCal группы (секрет). Без неё будильник не считается, пары ждут /push. */
+  ICAL_URL?: string;
   /** Координаты для прогноза погоды (по умолчанию — главный корпус ДГТУ). */
   WEATHER_LAT: string;
   WEATHER_LON: string;
@@ -27,6 +29,9 @@ export interface Lesson {
 
 export interface LessonsPayload {
   generated_at?: string;
+  /** Окно дат списка (YYYY-MM-DD, включительно). */
+  from?: string;
+  to?: string;
   lessons: Lesson[];
 }
 
