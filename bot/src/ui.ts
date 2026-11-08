@@ -17,7 +17,6 @@ export const MENU = {
   today: "📍 Сегодня",
   tomorrow: "➡️ Завтра",
   weeks: "🗓 Недели",
-  ask: "💬 Спросить",
   newHomework: "✍️ Записать дз",
   homework: "📝 Мои дз",
   settings: "⚙️",
@@ -106,7 +105,7 @@ export function todaySummary(today: string, lessons: Lesson[], weather: string |
 }
 
 /**
- * Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — запись дз, вопрос и настройки.
+ * Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — запись дз и настройки.
  * Недели открываются из экрана дня («К неделе»), поэтому в меню их нет.
  */
 export function mainMenu(): Keyboard {
@@ -116,7 +115,6 @@ export function mainMenu(): Keyboard {
     .text(MENU.tomorrow)
     .row()
     .text(MENU.newHomework)
-    .text(MENU.ask)
     .text(MENU.settings)
     .resized()
     .persistent();
@@ -141,7 +139,7 @@ export interface WeekData {
 /**
  * Неделя: по кнопке на день с числом пар, дз и погодой, внизу переключение недель.
  * mode «view» открывает день, «due» выбирает дату срока дз.
- * Воскресенье без пар и дз скрыто, чтобы не занимать место.
+ * Воскресенье всегда скрыто: в учебном расписании показываем только понедельник–субботу.
  */
 export function weekKeyboard(
   today: string,
@@ -155,7 +153,7 @@ export function weekKeyboard(
   for (const date of weekDates(today, offset)) {
     const lessons = data.lessons.get(date) ?? 0;
     const homework = data.homework.get(date) ?? 0;
-    if (parse(date).getUTCDay() === 0 && lessons === 0 && homework === 0) continue;
+    if (parse(date).getUTCDay() === 0) continue;
 
     const parts = [`${date === today ? "• " : ""}${shortDate(date)} ${MONTHS_SHORT[parse(date).getUTCMonth()]}`];
     parts.push(lessons > 0 ? pairs(lessons) : "нет пар");

@@ -230,7 +230,6 @@ function createBot(env: Env, store: Store): Bot {
     await ctx.reply("Что узнать? Например: «Когда следующая лекция по матану?»");
   };
   bot.command("ask", menu(askSchedule));
-  bot.hears(MENU.ask, menu(askSchedule));
 
   // Пример плана перед выходом — на ближайший день с парами. Утреннюю отправку не трогает.
   const previewPlan = async (ctx: Context) => {
