@@ -52,6 +52,72 @@ export function stripThinking(text: string): string | null {
   return clean || null;
 }
 
+// --- Вопросы о расписании ---
+
+/** Не даём модели ничего, кроме уже известных боту фактов. */
+export function schedulePrompt(
+  question: string,
+  now: { date: string; time: string },
+  lessons: Lesson[],
+  homework: Homework[],
+): ChatMessage[] {
+  const futureLessons = lessons
+    .filter((l) => l.date > now.date || (l.date === now.date && l.start >= now.time))
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  const lessonLines = futureLessons.map(
+    (l) => `${l.date} ${l.start}${l.end ? `–${l.end}` : ""} | ${l.title} | ${TYPE_LABELS[l.type] || "занятие"}${l.room ? ` | ${formatRoom(l.room)}` : ""}`);
+  const homeworkLines = homework
+    .filter((h) => !h.done && h.due_date >= now.date)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+    .map((h) => `${h.due_date} | ${h.title}: ${h.text}`);
+
+  const system = [
+    "Ты отвечаешь на вопрос одного студента только по данным ниже.",
+    `Сейчас ${now.date} ${now.time} по Москве.`,
+    "Не выдумывай пары, аудитории, даты, задания или правила. Если нужного нет в данных — прямо скажи «В загруженном расписании этого нет».",
+    "Если спрашивают «следующая лекция», учитывай только занятия с типом «лекция». Не пересказывай расписание без необходимости.",
+    "Ответь по-русски, кратко и по делу: максимум 2 предложения, без markdown и эмодзи.",
+    "",
+    "Будущие пары (дата | время | предмет | тип | аудитория):",
+    ...(lessonLines.length ? lessonLines : ["нет пар в загруженном окне"]),
+    "",
+    "Невыполненные домашние задания (срок | предмет: текст):",
+    ...(homeworkLines.length ? homeworkLines : ["нет"]),
+  ].join("\n");
+
+  return [{ role: "system", content: system }, { role: "user", content: question.trim() }];
+}
+
+/** Чистый короткий ответ модели; HTML экранируется при отправке. */
+export function cleanScheduleAnswer(text: string): string | null {
+  const clean = text.replace(/[*_`#]/g, "").replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
+  return clean ? clean.slice(0, 700) : null;
+}
+
+export async function scheduleAnswer(
+  run: AiRunner,
+  question: string,
+  now: { date: string; time: string },
+  lessons: Lesson[],
+  homework: Homework[],
+): Promise<string | null> {
+  const answer = await run(schedulePrompt(question, now, lessons, homework));
+  return answer ? cleanScheduleAnswer(answer) : null;
+}
+
+/** Расшифровка telegram voice (ogg/opus) через Workers AI Whisper. */
+export async function transcribeAudio(ai: Ai, audio: ArrayBuffer): Promise<string | null> {
+  try {
+    const run = ai.run as unknown as (model: string, input: ArrayBuffer) => Promise<unknown>;
+    const result = (await run("@cf/openai/whisper", audio)) as { text?: unknown } | null;
+    const text = typeof result?.text === "string" ? result.text.replace(/\s+/g, " ").trim() : "";
+    return text || null;
+  } catch (err) {
+    console.error("voice transcription error", err);
+    return null;
+  }
+}
+
 // --- Разбор дз из свободного текста ---
 
 export interface Subject {

@@ -17,6 +17,7 @@ export const MENU = {
   today: "📍 Сегодня",
   tomorrow: "➡️ Завтра",
   weeks: "🗓 Недели",
+  ask: "💬 Спросить",
   newHomework: "✍️ Записать дз",
   homework: "📝 Мои дз",
   settings: "⚙️",
@@ -105,7 +106,7 @@ export function todaySummary(today: string, lessons: Lesson[], weather: string |
 }
 
 /**
- * Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — запись дз и настройки.
+ * Меню: сверху то, что открывают каждый день (сегодня, дз, завтра), снизу — запись дз, вопрос и настройки.
  * Недели открываются из экрана дня («К неделе»), поэтому в меню их нет.
  */
 export function mainMenu(): Keyboard {
@@ -115,6 +116,7 @@ export function mainMenu(): Keyboard {
     .text(MENU.tomorrow)
     .row()
     .text(MENU.newHomework)
+    .text(MENU.ask)
     .text(MENU.settings)
     .resized()
     .persistent();

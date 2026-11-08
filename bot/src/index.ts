@@ -4,7 +4,9 @@ import {
   draftText,
   draftToHomework,
   resolveDue,
+  scheduleAnswer,
   subjectsFrom,
+  transcribeAudio,
   workersAiRunner,
   type HomeworkDraft,
 } from "./ai";
@@ -216,6 +218,19 @@ function createBot(env: Env, store: Store): Bot {
   });
   bot.command("settings", menu(showSettings));
 
+  /** Вопросы отделены от записи дз, чтобы обычный текст по-прежнему был заданием. */
+  const askSchedule = async (ctx: Context) => {
+    const lessons = await lessonsList();
+    if (lessons.length === 0) {
+      await ctx.reply(NO_SCHEDULE);
+      return;
+    }
+    await store.putPending({ question: true });
+    await ctx.reply("Что узнать? Например: «Когда следующая лекция по матану?»");
+  };
+  bot.command("ask", menu(askSchedule));
+  bot.hears(MENU.ask, menu(askSchedule));
+
   // Пример плана перед выходом — на ближайший день с парами. Утреннюю отправку не трогает.
   const previewPlan = async (ctx: Context) => {
     const lessons = await lessonsList();
@@ -294,10 +309,26 @@ function createBot(env: Env, store: Store): Bot {
     await showDraft(ctx, draft);
   };
 
+  const answerQuestion = async (ctx: Context, question: string) => {
+    const [lessons, homework] = await Promise.all([lessonsList(), store.getHomework()]);
+    if (lessons.length === 0) {
+      await ctx.reply(NO_SCHEDULE);
+      return;
+    }
+    await ctx.replyWithChatAction("typing").catch(() => {});
+    const answer = await scheduleAnswer(workersAiRunner(env.AI), question, moscowNow(), lessons, homework);
+    await ctx.reply(answer ? escapeHtml(answer) : "Не смог сейчас ответить. Попробуй ещё раз.", { parse_mode: "HTML" });
+  };
+
   // Текст: ответ на «➕ дз» у пары или дз свободным текстом.
   bot.on("message:text", async (ctx) => {
     if (ctx.message.text.startsWith("/")) return;
     const pending = await store.getPending();
+    if (pending?.question) {
+      await store.clearPending();
+      await answerQuestion(ctx, ctx.message.text);
+      return;
+    }
     if (!pending?.lesson_id || pending.text !== undefined) {
       await quickHomework(ctx, ctx.message.text);
       return;
@@ -322,6 +353,39 @@ function createBot(env: Env, store: Store): Bot {
     await store.putPending({ lesson_id: from.id, text });
     const hint = settings.due_mode !== "ask" ? "Подходящей пары в расписании нет. " : "";
     await ctx.reply(`${hint}К какому сроку?`, { reply_markup: dueKeyboard(dueOptions(lessons, from)) });
+  });
+
+  /** Голосовое — то же свободное дз, только сначала расшифровываем его через Whisper. */
+  bot.on("message:voice", async (ctx) => {
+    const voice = ctx.message.voice;
+    if (voice.duration > 5 * 60) {
+      await ctx.reply("Голосовое длиннее 5 минут. Пришли короче или напиши текстом.");
+      return;
+    }
+    await ctx.replyWithChatAction("typing").catch(() => {});
+    try {
+      const info = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/getFile?file_id=${encodeURIComponent(voice.file_id)}`);
+      const body = (await info.json()) as { ok?: boolean; result?: { file_path?: string } };
+      if (!info.ok || !body.ok || !body.result?.file_path) throw new Error("telegram getFile failed");
+      const file = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${body.result.file_path}`);
+      if (!file.ok) throw new Error("telegram file download failed");
+      const text = await transcribeAudio(env.AI, await file.arrayBuffer());
+      if (!text) {
+        await ctx.reply("Не смог разобрать голосовое. Попробуй сказать короче или напиши текстом.");
+        return;
+      }
+      const pending = await store.getPending();
+      await ctx.reply(`🎙 <i>Распознал: ${escapeHtml(text)}</i>`, { parse_mode: "HTML" });
+      if (pending?.question) {
+        await store.clearPending();
+        await answerQuestion(ctx, text);
+      } else {
+        await quickHomework(ctx, text);
+      }
+    } catch (err) {
+      console.error("voice message error", err instanceof Error ? err.message : "unknown");
+      await ctx.reply("Не смог скачать голосовое. Попробуй ещё раз или напиши текстом.");
+    }
   });
 
   // --- Черновик дз от ИИ ---

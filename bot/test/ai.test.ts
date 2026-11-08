@@ -7,6 +7,8 @@ import {
   homeworkPrompt,
   parseHomeworkAnswer,
   resolveDue,
+  scheduleAnswer,
+  schedulePrompt,
   stripThinking,
   subjectsFrom,
   type AiRunner,
@@ -201,6 +203,26 @@ describe("stripThinking", () => {
     expect(stripThinking("<think>хм</think>\nОк")).toBe("Ок");
     expect(stripThinking("хм, думаю...</think>Ок")).toBe("Ок");
     expect(stripThinking("<think>хм</think>  ")).toBeNull();
+  });
+});
+
+describe("вопросы о расписании", () => {
+  it("модель получает только будущие пары и открытые дз", async () => {
+    const { run, calls } = fakeRunner("Следующая лекция по матану — 2 ноября в 12:00.");
+    const answer = await scheduleAnswer(run, "Когда лекция по матану?", now, lessons, [
+      { id: "h", text: "конспект", title: "Химия", subject_key: "химия", from_lesson_id: "", due_date: "2026-11-04", due_lesson_id: "c2", done: false },
+      { id: "done", text: "старое", title: "Химия", subject_key: "химия", from_lesson_id: "", due_date: "2026-10-28", due_lesson_id: "c1", done: true },
+    ]);
+    expect(answer).toBe("Следующая лекция по матану — 2 ноября в 12:00.");
+    expect(calls[0][1]).toBeUndefined();
+    expect(calls[0][0][0].content).toContain("2026-11-02 12:00 | Высшая математика | лекция");
+    expect(calls[0][0][0].content).not.toContain("2026-10-28 08:30");
+    expect(calls[0][0][0].content).toContain("2026-11-04 | Химия: конспект");
+  });
+
+  it("промпт запрещает выдумывать факты, а пустой ответ не отправляется", async () => {
+    expect(schedulePrompt("что завтра?", now, lessons, [])[0].content).toContain("Не выдумывай");
+    expect(await scheduleAnswer(fakeRunner(null).run, "что завтра?", now, lessons, [])).toBeNull();
   });
 });
 

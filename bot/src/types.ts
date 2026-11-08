@@ -66,4 +66,6 @@ export interface Pending {
   lesson_id?: string;
   text?: string;
   draft?: HomeworkDraft;
+  /** Следующее сообщение — вопрос к помощнику о расписании и дз. */
+  question?: true;
 }
