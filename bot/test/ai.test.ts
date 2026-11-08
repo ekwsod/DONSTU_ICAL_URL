@@ -5,6 +5,7 @@ import {
   draftToHomework,
   dueKindFromText,
   homeworkPrompt,
+  messageIntent,
   parseHomeworkAnswer,
   resolveDue,
   scheduleAnswer,
@@ -203,6 +204,18 @@ describe("stripThinking", () => {
     expect(stripThinking("<think>хм</think>\nОк")).toBe("Ок");
     expect(stripThinking("хм, думаю...</think>Ок")).toBe("Ок");
     expect(stripThinking("<think>хм</think>  ")).toBeNull();
+  });
+});
+
+describe("выбор назначения свободного текста", () => {
+  it("вопрос идёт в расписание, а новое задание — в карточку дз", async () => {
+    expect(await messageIntent(fakeRunner('{"intent":"question"}').run, "Когда следующая лекция по матану")).toBe("question");
+    expect(await messageIntent(fakeRunner('{"intent":"homework"}').run, "матан к пятнице 1-5")).toBe("homework");
+  });
+
+  it("неверный или отсутствующий ответ безопасно считает сообщением о дз", async () => {
+    expect(await messageIntent(fakeRunner("не понял").run, "что завтра")).toBe("homework");
+    expect(await messageIntent(fakeRunner('{"intent":"other"}').run, "что завтра")).toBe("homework");
   });
 });
 

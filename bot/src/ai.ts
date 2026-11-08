@@ -52,6 +52,41 @@ export function stripThinking(text: string): string | null {
   return clean || null;
 }
 
+// --- Выбор: вопрос или новое дз ---
+
+export type MessageIntent = "question" | "homework";
+
+const INTENT_SCHEMA = {
+  name: "message_intent",
+  schema: {
+    type: "object",
+    properties: {
+      intent: { type: "string", enum: ["question", "homework"] },
+    },
+    required: ["intent"],
+    additionalProperties: false,
+  },
+};
+
+/** Определяем только намерение, без попытки ответить или придумать предмет. */
+export async function messageIntent(run: AiRunner, text: string): Promise<MessageIntent> {
+  const system = [
+    "Определи намерение одного сообщения студента и верни JSON по схеме.",
+    "question — студент просит информацию о своём расписании, паре, аудитории, времени или записанных домашних заданиях.",
+    "homework — студент сообщает новое домашнее задание, что задали, или просит его записать.",
+    "Примеры question: «когда следующая лекция по матану», «что завтра», «какое у меня дз по химии».",
+    "Примеры homework: «матан к пятнице 1–5», «запиши: по химии отчёт к следующей лабе».",
+    "Если не уверен — homework: это безопаснее, бот покажет карточку до сохранения.",
+  ].join("\n");
+  const raw = await run([{ role: "system", content: system }, { role: "user", content: text.trim() }], INTENT_SCHEMA);
+  try {
+    const json = raw?.match(/\{[\s\S]*\}/)?.[0];
+    return json && (JSON.parse(json) as { intent?: unknown }).intent === "question" ? "question" : "homework";
+  } catch {
+    return "homework";
+  }
+}
+
 // --- Вопросы о расписании ---
 
 /** Не даём модели ничего, кроме уже известных боту фактов. */

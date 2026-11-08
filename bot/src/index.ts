@@ -3,6 +3,7 @@ import {
   draftHomework,
   draftText,
   draftToHomework,
+  messageIntent,
   resolveDue,
   scheduleAnswer,
   subjectsFrom,
@@ -320,6 +321,14 @@ function createBot(env: Env, store: Store): Bot {
     await ctx.reply(answer ? escapeHtml(answer) : "Не смог сейчас ответить. Попробуй ещё раз.", { parse_mode: "HTML" });
   };
 
+  /** Обычный текст сам маршрутизируем: вопрос получает ответ, остальное — черновик дз. */
+  const handleFreeText = async (ctx: Context, text: string) => {
+    await ctx.replyWithChatAction("typing").catch(() => {});
+    const intent = await messageIntent(workersAiRunner(env.AI), text);
+    if (intent === "question") await answerQuestion(ctx, text);
+    else await quickHomework(ctx, text);
+  };
+
   // Текст: ответ на «➕ дз» у пары или дз свободным текстом.
   bot.on("message:text", async (ctx) => {
     if (ctx.message.text.startsWith("/")) return;
@@ -330,7 +339,7 @@ function createBot(env: Env, store: Store): Bot {
       return;
     }
     if (!pending?.lesson_id || pending.text !== undefined) {
-      await quickHomework(ctx, ctx.message.text);
+      await handleFreeText(ctx, ctx.message.text);
       return;
     }
 
@@ -380,7 +389,7 @@ function createBot(env: Env, store: Store): Bot {
         await store.clearPending();
         await answerQuestion(ctx, text);
       } else {
-        await quickHomework(ctx, text);
+        await handleFreeText(ctx, text);
       }
     } catch (err) {
       console.error("voice message error", err instanceof Error ? err.message : "unknown");
