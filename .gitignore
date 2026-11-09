@@ -13,7 +13,8 @@ venv/
 env/
 
 # Локально сгенерированные файлы сборки (на Pages публикуются через Actions)
-public/
+/public/
+.playwright-mcp/
 
 # Системные файлы
 .DS_Store

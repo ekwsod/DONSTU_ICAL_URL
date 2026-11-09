@@ -15,6 +15,7 @@ import { alarmPayload, alarmSyncDue, fetchIcal, lessonsPayload } from "./alarm";
 import { autoDue, dueOptions, makeHomework, openHomework } from "./homework";
 import { homeworkToRemind, lessonToWarnAbout, morningText, moscowNow, nextStudyDate, reminderText } from "./morning";
 import { Store } from "./store";
+import { miniApi } from "./miniapp";
 import {
   MAX_WEEK_OFFSET,
   LEGACY_MENU,
@@ -204,6 +205,9 @@ function createBot(env: Env, store: Store): Bot {
     await showDay(ctx, todayMoscow());
   }));
   bot.command("hw", menu(showHomeworkList));
+  bot.command("app", async (ctx) => {
+    await ctx.reply("Расписание и задания в приложении", { reply_markup: new InlineKeyboard().webApp("Открыть мои пары", "https://donstu-bot.dstujarvis.workers.dev/app/") });
+  });
   bot.command("new", menu((ctx) => askNewHomework(ctx)));
   bot.hears(MENU.homework, menu(showHomeworkList));
 
@@ -686,6 +690,7 @@ async function handlePush(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === "/api/app") return miniApi(request, env);
 
     if (request.method === "POST" && url.pathname === "/push") {
       return handlePush(request, env);

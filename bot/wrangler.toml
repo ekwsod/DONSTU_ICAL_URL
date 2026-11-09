@@ -2,6 +2,9 @@ name = "donstu-bot"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
 
+[assets]
+directory = "./public"
+
 # Координаты для погоды: главный корпус ДГТУ, пл. Гагарина, 1 (Ростов-на-Дону)
 [vars]
 WEATHER_LAT = "47.2373"
