@@ -118,6 +118,7 @@ class TestLessonsPayload(unittest.TestCase):
 
         first = payload["lessons"][0]
         self.assertEqual(first["type"], "lecture")
+        self.assertEqual(first["source_uid"], "id-19-08:30")
         self.assertEqual(first["subject_key"], "математика")
         self.assertEqual(first["room"], "8-402")
         self.assertIsNotNone(first["id"])

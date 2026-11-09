@@ -61,8 +61,35 @@ export class Store {
     return this.read<LessonsPayload>(KEYS.lessons);
   }
 
-  putLessons(payload: LessonsPayload): Promise<void> {
-    return this.write(KEYS.lessons, payload);
+  /**
+   * Портал меняет id пары при переносе: он зависит от времени начала. Перед заменой расписания
+   * перепривязываем открытое дз к той же VEVENT по source_uid. Старые записи без UID трогаем
+   * только при единственном совпадении предмета в тот же день — без рискованных догадок.
+   */
+  async putLessons(payload: LessonsPayload): Promise<void> {
+    const [previous, homework] = await Promise.all([this.getLessons(), this.getHomework()]);
+    const ids = new Set(payload.lessons.map((lesson) => lesson.id));
+    const oldById = new Map(previous?.lessons.map((lesson) => [lesson.id, lesson]) ?? []);
+
+    const relinked = homework.map((item) => {
+      if (item.done || !item.due_lesson_id || ids.has(item.due_lesson_id)) return item;
+      const old = oldById.get(item.due_lesson_id);
+      let candidates = old?.source_uid
+        ? payload.lessons.filter((lesson) => lesson.source_uid === old.source_uid)
+        : [];
+      if (candidates.length !== 1) {
+        candidates = payload.lessons.filter((lesson) => lesson.date === item.due_date && lesson.subject_key === item.subject_key);
+      }
+      if (candidates.length !== 1) return item;
+
+      const target = candidates[0];
+      return { ...item, due_date: target.date, due_lesson_id: target.id };
+    });
+
+    await Promise.all([
+      this.write(KEYS.lessons, payload),
+      relinked.some((item, index) => item !== homework[index]) ? this.putHomework(relinked) : Promise.resolve(),
+    ]);
   }
 
   /** schedule.json для быстрой команды iPhone. */

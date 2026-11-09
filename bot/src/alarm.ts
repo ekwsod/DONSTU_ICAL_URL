@@ -247,6 +247,7 @@ export async function lessonsPayload(events: IcalEvent[], today: string, generat
       const title = lessonTitle(e.summary);
       return {
         id: await lessonId(e.uid, e.start),
+        source_uid: e.uid,
         date: e.start.slice(0, 10),
         start: hhmm(e.start),
         end: e.end ? hhmm(e.end) : null,

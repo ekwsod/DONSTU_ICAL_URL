@@ -18,6 +18,8 @@ export type LessonType = "lecture" | "practice" | "lab" | "other";
 
 export interface Lesson {
   id: string;
+  /** UID исходного VEVENT: позволяет пережить перенос пары на другую дату или время. */
+  source_uid?: string;
   date: string; // YYYY-MM-DD
   start: string; // HH:MM
   end: string | null;

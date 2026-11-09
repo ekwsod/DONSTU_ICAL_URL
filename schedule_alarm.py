@@ -410,6 +410,9 @@ def build_lessons_payload(events: list[ICalEvent], start_date: date, days: int, 
         title = lesson_title(event.summary)
         lessons.append({
             "id": make_lesson_id(event.uid, event.dtstart),
+            # UID не публикуется на Pages, он нужен только Worker для перепривязки дз,
+            # когда портал переносит ту же пару и меняется её id (id зависит от времени).
+            "source_uid": event.uid,
             "date": event_date.isoformat(),
             "start": f"{event.dtstart.hour:02d}:{event.dtstart.minute:02d}",
             "end": f"{event.dtend.hour:02d}:{event.dtend.minute:02d}" if event.dtend else None,
