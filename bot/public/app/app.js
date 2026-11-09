@@ -1,4 +1,5 @@
 const tg = window.Telegram?.WebApp;
+const touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; touchIcon.href = '/app/apple-touch-icon-v2.png'; document.head.append(touchIcon);
 const manifest = document.createElement('link'); manifest.rel = 'manifest'; manifest.href = '/app/manifest.webmanifest'; document.head.append(manifest);
 for (const [name,content] of [['apple-mobile-web-app-capable','yes'],['apple-mobile-web-app-title','Мои пары'],['theme-color','#f5f7fc']]) { const meta = document.createElement('meta'); meta.name=name; meta.content=content; document.head.append(meta); }
 tg?.ready(); tg?.expand();
