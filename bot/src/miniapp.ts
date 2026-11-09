@@ -1,5 +1,6 @@
 import type { Env } from './types';
 import { Store } from './store';
+import { webSession } from './webauth';
 
 /** Проверка initData: доверяем только подписи Telegram, никогда initDataUnsafe. */
 export async function verifyInitData(raw: string, token: string, owner: string, now = Date.now()): Promise<boolean> {
@@ -23,7 +24,8 @@ export async function verifyInitData(raw: string, token: string, owner: string, 
 
 export async function miniApi(request: Request, env: Env): Promise<Response> {
   const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
-  if (!await verifyInitData(request.headers.get('X-Telegram-Init-Data') ?? '', env.BOT_TOKEN, env.OWNER_CHAT_ID)) return json({ error: 'Открой приложение из бота заново.' }, 401);
+  if (request.method !== 'GET' && request.headers.get('Origin') !== new URL(request.url).origin) return json({ error: 'Недопустимый источник запроса' }, 403);
+  if (!await verifyInitData(request.headers.get('X-Telegram-Init-Data') ?? '', env.BOT_TOKEN, env.OWNER_CHAT_ID) && !await webSession(request, env)) return json({ error: 'Для входа получи код командой /web в боте.' }, 401);
   const store = new Store(env.SCHEDULE);
   if (request.method === 'GET') {
     const [schedule, homework] = await Promise.all([store.getLessons(), store.getHomework()]);

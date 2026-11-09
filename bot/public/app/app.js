@@ -1,4 +1,6 @@
 const tg = window.Telegram?.WebApp;
+const manifest = document.createElement('link'); manifest.rel = 'manifest'; manifest.href = '/app/manifest.webmanifest'; document.head.append(manifest);
+for (const [name,content] of [['apple-mobile-web-app-capable','yes'],['apple-mobile-web-app-title','Мои пары'],['theme-color','#f5f7fc']]) { const meta = document.createElement('meta'); meta.name=name; meta.content=content; document.head.append(meta); }
 tg?.ready(); tg?.expand();
 const $ = id => document.getElementById(id);
 let data = { lessons: [], homework: [] }, selected, active = 'schedule';
@@ -10,7 +12,16 @@ const node = (tag, text, cls) => { const el = document.createElement(tag); if (t
 const kinds = { lecture: 'Лекция', practice: 'Практика', lab: 'Лабораторная', other: 'Занятие' };
 async function api(body) {
   const response = await fetch('/api/app', { method: body ? 'POST' : 'GET', headers: { 'X-Telegram-Init-Data': tg?.initData || '', ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
-  const result = await response.json(); if (!response.ok) throw Error(result.error || 'Не удалось загрузить данные'); return result;
+  const result = await response.json(); if (response.status === 401 && !tg?.initData) showLogin(); if (!response.ok) throw Error(result.error || 'Не удалось загрузить данные'); return result;
+}
+function showLogin() {
+  if ($('login')) return;
+  const box = node('dialog'); box.id = 'login'; const form = node('form');
+  form.append(node('h2','Войти в мои пары'), node('p','Отправь /web боту и вставь полученный код. После входа в Safari нажми «Поделиться» → «На экран Домой».'));
+  const input = node('input'); input.required=true; input.autocomplete='off'; input.setAttribute('aria-label','Код из бота'); input.placeholder='Код из бота'; input.style.cssText='width:100%;padding:14px;margin:10px 0 20px';
+  const button=node('button','Войти','primary'); button.type='submit'; const error=node('p'); error.setAttribute('role','alert');
+  form.append(input,button,error); form.onsubmit=async e=>{e.preventDefault();button.disabled=true;try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:input.value.trim()})});const result=await response.json();if(!response.ok)throw Error(result.error || 'Ошибка входа');box.close();box.remove();await load();}catch(e){error.textContent=e.message;}finally{button.disabled=false;}};
+  box.append(form);document.body.append(box);box.addEventListener('cancel',e=>e.preventDefault());box.showModal();
 }
 function task(item) {
   const el = node('div', undefined, 'task' + (item.done ? ' done' : ''));
