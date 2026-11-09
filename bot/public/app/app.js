@@ -30,9 +30,12 @@ function openEditor(id) {
 function render() {
   $('count').textContent = data.homework.filter(h => !h.done).length || '';
   $('month').textContent = label(selected, { month: 'long' });
+  $('month').setAttribute('aria-label', 'Выбрать месяц: ' + label(selected, { month: 'long', year: 'numeric' }));
   $('dates').replaceChildren();
-  for (let i = 0; i < 28; i++) {
-    const d = shift(moscow(), i); if (date(d).getUTCDay() === 0) continue;
+  const first = selected.slice(0, 7) + '-01';
+  for (let i = 0; i < 31; i++) {
+    const d = shift(first, i); if (d.slice(0, 7) !== selected.slice(0, 7)) break;
+    if (date(d).getUTCDay() === 0) continue;
     const b = node('button', undefined, 'date'); b.setAttribute('aria-pressed', String(d === selected)); b.setAttribute('aria-label', label(d, { day: 'numeric', month: 'long', weekday: 'long' }));
     b.append(node('small', label(d, { weekday: 'short' })), node('b', String(date(d).getUTCDate())));
     if (data.lessons.some(l => l.date === d)) b.append(node('i'));
@@ -47,7 +50,7 @@ function render() {
     const el = node('article', undefined, 'lesson'), time = node('div', l.start, 'time'), content = node('div', undefined, 'content'); time.append(node('small', l.end || ''));
     content.append(node('div', kinds[l.type], 'kind'), node('h2', l.title), node('p', l.room || 'Аудитория не указана', 'room'));
     data.homework.filter(h => h.due_lesson_id === l.id && !h.done).forEach(h => content.append(task(h)));
-    const add = node('button', '+ Задание к паре'); add.onclick = () => openEditor(l.id); content.append(add); el.append(time,content); $('lessons').append(el);
+    const add = node('button', '+'); add.className = 'lesson-add'; add.setAttribute('aria-label', 'Добавить задание: ' + l.title); add.onclick = () => openEditor(l.id); content.append(add); el.append(time,content); $('lessons').append(el);
   });
   const loose = data.homework.filter(h => h.due_date === selected && !h.done && !day.some(l => l.id === h.due_lesson_id));
   if (!day.length) { const empty = node('div', undefined, 'empty'); empty.append(node('b', 'День без пар'), node('span', 'В загруженном расписании занятий нет.')); $('lessons').append(empty); }
@@ -57,8 +60,28 @@ function render() {
   if (!tasks.length) { const empty = node('div', undefined, 'empty'); empty.append(node('b', 'Всё спокойно'), node('span', 'Открытых заданий нет. Новое можно записать здесь или отправить боту.')); $('tasks').append(empty); }
   $('updated').textContent = data.generated_at ? 'Расписание обновлено ' + new Date(data.generated_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
 }
-async function load() { $('refresh').disabled = true; $('status').textContent = 'Загружаю…'; try { data = await api(); selected ||= moscow(); render(); $('status').textContent = ''; } catch(e) { $('status').textContent = e.message; } finally { $('refresh').disabled = false; } }
+function scrollToSelected() {
+  $('dates').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
+function chooseMonth() {
+  let picker = $('monthPicker');
+  if (!picker) {
+    picker = node('dialog'); picker.id = 'monthPicker';
+    const heading = node('div', undefined, 'heading'); heading.append(node('h2', 'Выбрать месяц'));
+    const close = node('button', '✕'); close.setAttribute('aria-label', 'Закрыть выбор месяца'); close.onclick = () => picker.close(); heading.append(close);
+    picker.append(heading, node('div', undefined, 'month-options')); document.body.append(picker);
+  }
+  const options = picker.querySelector('.month-options'); options.replaceChildren();
+  const months = [...new Set([moscow(), ...data.lessons.map(l => l.date), ...data.homework.map(h => h.due_date)].map(d => d.slice(0,7)))].sort();
+  months.forEach(m => {
+    const b = node('button', label(m + '-01', { month: 'long', year: 'numeric' })); b.setAttribute('aria-pressed', String(m === selected.slice(0,7)));
+    b.onclick = () => { selected = m === moscow().slice(0,7) ? moscow() : data.lessons.filter(l => l.date.startsWith(m)).map(l => l.date).sort()[0] || m + '-01'; picker.close(); render(); scrollToSelected(); }; options.append(b);
+  });
+  picker.showModal();
+}
+async function load() { $('refresh').disabled = true; $('status').textContent = 'Загружаю…'; try { data = await api(); selected ||= moscow(); render(); scrollToSelected(); $('status').textContent = ''; } catch(e) { $('status').textContent = e.message; } finally { $('refresh').disabled = false; } }
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { active = b.dataset.tab; document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b))); $('schedule').hidden = active !== 'schedule'; $('homework').hidden = active !== 'homework'; });
-$('refresh').onclick = load; $('completed').onchange = render; $('today').onclick = () => { selected = moscow(); render(); }; $('add').onclick = () => openEditor(); $('close').onclick = () => $('editor').close();
+$('month').setAttribute('role', 'button'); $('month').tabIndex = 0; $('month').onclick = chooseMonth; $('month').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chooseMonth(); } };
+$('refresh').onclick = load; $('completed').onchange = render; $('today').onclick = () => { selected = moscow(); render(); scrollToSelected(); }; $('add').onclick = () => openEditor(); $('close').onclick = () => $('editor').close();
 $('form').onsubmit = async e => { e.preventDefault(); const submit = e.submitter; submit.disabled = true; try { data.homework = (await api({ action: 'add', lesson_id: $('target').value, text: $('text').value })).homework; $('editor').close(); render(); tg?.HapticFeedback?.notificationOccurred('success'); } catch(err) { $('formError').textContent = err.message; } finally { submit.disabled = false; } };
 load();
