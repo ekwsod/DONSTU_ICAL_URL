@@ -4,10 +4,12 @@ struct ScheduleView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var scheme
     @MotionPreference private var reduceMotion
+    @AppStorage(AppPreferences.animationsKey, store: AppPreferences.store) private var animations = true
     @ScaledMetric(relativeTo: .title3) private var headerSize = 20
     @ScaledMetric(relativeTo: .caption) private var smallSize = 12
     @State private var selected = Date()
     @State private var calendarOpen = false
+    @State private var settingsOpen = false
     @State private var editor: HomeworkEditorRequest?
 
     private var day: [Lesson] {
@@ -49,7 +51,11 @@ struct ScheduleView: View {
                 }.presentationDetents([.medium, .large])
             }
             .sheet(item: $editor) { request in AddHomeworkView(initial: request.lesson) }
-            .task { if model.demo && ProcessInfo.processInfo.arguments.contains("--show-add") { editor = HomeworkEditorRequest() } }
+            .sheet(isPresented: $settingsOpen) { SettingsView() }
+            .task {
+                if model.demo && ProcessInfo.processInfo.arguments.contains("--show-add") { editor = HomeworkEditorRequest() }
+                else if model.demo && ProcessInfo.processInfo.arguments.contains("--show-settings") { settingsOpen = true }
+            }
         }
     }
 
@@ -101,7 +107,7 @@ struct ScheduleView: View {
             }
             HStack(spacing: 0) {
                 Button { moveWeek(-1) } label: {
-                    Image(systemName: "chevron.left").font(.body.weight(.medium))
+                    Image(systemName: "chevron.left").font(.body.weight(.medium)).foregroundStyle(.tint)
                         .frame(width: 44, height: 64).contentShape(.rect)
                 }.buttonStyle(QuietPressStyle()).accessibilityLabel("Предыдущая неделя")
                 ViewThatFits(in: .horizontal) {
@@ -113,10 +119,13 @@ struct ScheduleView: View {
                     }
                 }
                 Button { moveWeek(1) } label: {
-                    Image(systemName: "chevron.right").font(.body.weight(.medium))
+                    Image(systemName: "chevron.right").font(.body.weight(.medium)).foregroundStyle(.tint)
                         .frame(width: 44, height: 64).contentShape(.rect)
                 }.buttonStyle(QuietPressStyle()).accessibilityLabel("Следующая неделя")
-            }.foregroundStyle(ScheduleAppearance.secondary(scheme))
+            }
+            .foregroundStyle(ScheduleAppearance.secondary(scheme))
+            .padding(4)
+            .modifier(ScheduleDateBarMaterial())
         }
     }
 
@@ -129,7 +138,7 @@ struct ScheduleView: View {
         HStack(spacing: 4) {
             Button { calendarOpen = true } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "calendar").font(.system(size: 18)).accessibilityHidden(true)
+                    Image(systemName: "calendar").font(.system(size: 18)).foregroundStyle(.tint).accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 0) {
                         if let first = week.first, let last = week.last {
                             Text(first, format: .dateTime.day().month(.abbreviated))
@@ -142,29 +151,23 @@ struct ScheduleView: View {
                 Button("Сегодня", systemImage: "arrow.uturn.backward") { select(Date()) }
                     .accessibilityIdentifier("schedule-today")
                 Button("Новое задание", systemImage: "plus") { editor = HomeworkEditorRequest() }
+                Button("Настройки", systemImage: "gearshape") { settingsOpen = true }
+                    .accessibilityIdentifier("schedule-settings")
             } label: {
-                Image(systemName: "ellipsis").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44)
+                Image(systemName: "ellipsis").font(.system(size: 18, weight: .medium)).foregroundStyle(.tint).frame(width: 44, height: 44)
             }.accessibilityLabel("Действия расписания").accessibilityIdentifier("schedule-actions")
         }.foregroundStyle(ScheduleAppearance.secondary(scheme))
     }
 
     private var weekStrip: some View {
-        ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons,
-                          selectionInk: selectionInk, selectionFill: selectionFill, select: select)
+        ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons, select: select)
             // A new week gets its own selection geometry: no flying pill across unrelated dates.
             .id(week.first)
     }
 
-    private var selectionInk: Color {
-        scheme == .dark ? Color(red: 0.70, green: 0.82, blue: 0.96) : Color(red: 0.16, green: 0.34, blue: 0.56)
-    }
-    private var selectionFill: Color {
-        scheme == .dark ? Color(red: 0.12, green: 0.23, blue: 0.35) : Color(red: 0.84, green: 0.90, blue: 0.97)
-    }
-
     private func select(_ date: Date) {
         guard Dates.key(date) != Dates.key(selected) else { return }
-        withAnimation(InterfaceMotion.selection(reduceMotion: reduceMotion)) { selected = date }
+        withAnimation(animations ? InterfaceMotion.selection(reduceMotion: reduceMotion) : nil) { selected = date }
     }
 
     private func moveWeek(_ offset: Int) {
@@ -174,6 +177,8 @@ struct ScheduleView: View {
 
 private struct ScheduleWeekStrip: View {
     @MotionPreference private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @AppStorage(AppPreferences.lessonDotsKey, store: AppPreferences.store) private var lessonDots = true
     @ScaledMetric(relativeTo: .body) private var dayWidth = 44
     @ScaledMetric(relativeTo: .caption) private var smallSize = 12
     @ScaledMetric(relativeTo: .body) private var dateSize = 18
@@ -183,38 +188,40 @@ private struct ScheduleWeekStrip: View {
     let week: [Date]
     let selected: Date
     let lessons: [Lesson]
-    let selectionInk: Color
-    let selectionFill: Color
     let select: (Date) -> Void
 
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 0) { dates }
+        } else {
+            dates
+        }
+    }
+
+    private var dates: some View {
         HStack(spacing: 0) {
             ForEach(week, id: \.self) { date in
                 let isSelected = Dates.key(date) == Dates.key(selected)
                 let isToday = Dates.calendar.isDateInToday(date)
                 let count = Set(lessons.filter { $0.date == Dates.key(date) }.map(\.start)).count
                 Button { select(date) } label: {
-                    VStack(spacing: 3) {
+                    let label = VStack(spacing: 3) {
                         Text(date, format: .dateTime.weekday(.abbreviated))
                             .font(.system(size: smallSize, weight: isSelected ? .medium : .regular))
                         Text(date, format: .dateTime.day())
                             .font(.system(size: isSelected ? selectedDateSize : dateSize, weight: .semibold))
                             .monospacedDigit().frame(height: dateLineHeight)
                         HStack(spacing: 3) {
-                            ForEach(0..<min(count, 8), id: \.self) { _ in Circle().frame(width: 3, height: 3) }
+                            ForEach(0..<min(count, 8), id: \.self) { _ in Circle().fill(Color.primary).frame(width: 3, height: 3) }
                             if count > 8 { Text("+\(count - 8)").font(.caption2) }
                         }.frame(height: 4).accessibilityHidden(true)
-                            .opacity(isSelected || isToday ? 1 : 0.6)
+                            .opacity(lessonDots ? (isSelected || isToday ? 1 : 0.6) : 0)
                     }
                     .padding(.vertical, 6).frame(minWidth: dayWidth, maxWidth: .infinity)
-                    .foregroundStyle(isSelected || isToday ? selectionInk : Color.primary)
-                    .background {
-                        if isSelected {
-                            if reduceMotion { selectionShape.transition(.opacity) }
-                            else { selectionShape.matchedGeometryEffect(id: "selected-date", in: selection) }
-                        }
-                    }
-                    .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(isToday && !isSelected ? selectionInk.opacity(0.35) : .clear, lineWidth: 1) }
+                    .foregroundStyle(Color.primary)
+                    selectionSurface(label, isSelected: isSelected)
+                    .overlay { Capsule().strokeBorder(isToday && !isSelected ? Color.primary.opacity(0.2) : .clear, lineWidth: 1) }
                 }.buttonStyle(QuietPressStyle()).id(Dates.key(date)).accessibilityIdentifier("schedule-day-\(Dates.key(date))")
                     .accessibilityLabel(Text(date, format: .dateTime.weekday(.wide).day().month(.wide)))
                     .accessibilityValue("\(count) занятий")
@@ -223,8 +230,22 @@ private struct ScheduleWeekStrip: View {
         }
     }
 
-    private var selectionShape: some View {
-        RoundedRectangle(cornerRadius: 14).fill(selectionFill)
-            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(selectionInk.opacity(0.35), lineWidth: 1) }
+    @ViewBuilder
+    private func selectionSurface<Content: View>(_ content: Content, isSelected: Bool) -> some View {
+        if !isSelected {
+            content
+        } else if reduceTransparency {
+            content.background(Color.primary.opacity(0.12), in: .capsule)
+        } else if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.interactive(!reduceMotion), in: .capsule)
+                .glassEffectID("selected-date", in: selection)
+                .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
+        } else {
+            content.background {
+                if reduceMotion { Capsule().fill(.thinMaterial) }
+                else { Capsule().fill(.thinMaterial).matchedGeometryEffect(id: "selected-date", in: selection) }
+            }
+        }
     }
 }

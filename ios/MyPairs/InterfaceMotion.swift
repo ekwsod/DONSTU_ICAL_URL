@@ -3,10 +3,11 @@ import SwiftUI
 @propertyWrapper
 struct MotionPreference: DynamicProperty {
     @Environment(\.accessibilityReduceMotion) private var systemSetting
+    @AppStorage(AppPreferences.animationsKey, store: AppPreferences.store) private var animations = true
 
     var wrappedValue: Bool {
         let arguments = ProcessInfo.processInfo.arguments
-        return systemSetting || (arguments.contains("--demo") && arguments.contains("--preview-reduced-motion"))
+        return !animations || systemSetting || (arguments.contains("--demo") && arguments.contains("--preview-reduced-motion"))
     }
 }
 
@@ -28,6 +29,6 @@ struct QuietPressStyle: ButtonStyle {
         configuration.label
             .opacity(configuration.isPressed ? 0.65 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(.easeOut(duration: 0.10), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }

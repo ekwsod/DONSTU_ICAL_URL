@@ -22,12 +22,12 @@ struct HomeworkListRow: View {
                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                         .font(.title2.weight(.light))
                         .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
-                        .animation(.easeOut(duration: 0.18), value: item.done)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: item.done)
                         .opacity(busy ? 0 : 1)
                     if busy { ProgressView() }
                 }.frame(width: 44, height: 44)
             }
-            .buttonStyle(QuietPressStyle()).foregroundStyle(ScheduleAppearance.secondary(scheme)).disabled(busy)
+            .buttonStyle(QuietPressStyle()).foregroundStyle(.tint).disabled(busy)
             .accessibilityLabel(item.done ? "Вернуть в задания" : "Отметить выполненным")
             .accessibilityValue(item.text)
             VStack(alignment: .leading, spacing: 6) {

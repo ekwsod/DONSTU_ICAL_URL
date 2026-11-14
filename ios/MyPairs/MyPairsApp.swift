@@ -2,12 +2,20 @@ import SwiftUI
 
 @main struct MyPairsApp: App {
     @State private var model = AppModel()
+    @AppStorage(AppPreferences.themeKey, store: AppPreferences.store) private var theme: AppTheme = .system
+    @AppStorage(AppPreferences.animationsKey, store: AppPreferences.store) private var animations = true
     var body: some Scene {
         WindowGroup {
             RootView().environment(model).environment(\.locale, Locale(identifier: "ru_RU"))
                 .environment(\.calendar, Dates.calendar).environment(\.timeZone, Dates.calendar.timeZone)
-                .tint(.primary)
-                .preferredColorScheme(previewScheme)
+                .modifier(AccentTint())
+                .preferredColorScheme(previewScheme ?? theme.colorScheme)
+                .transaction { transaction in
+                    if !animations {
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                }
         }
     }
     private var previewScheme: ColorScheme? {
@@ -51,12 +59,12 @@ struct TaskRow: View {
                 ZStack {
                     Image(systemName: item.done ? "checkmark.circle.fill" : "circle").font(.title2)
                         .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
-                        .animation(.easeOut(duration: 0.18), value: item.done)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: item.done)
                         .opacity(busy ? 0 : 1)
                     if busy { ProgressView() }
                 }.frame(width: 44, height: 44)
             }
-                .buttonStyle(QuietPressStyle()).disabled(busy).accessibilityLabel(item.done ? "Вернуть в задания" : "Отметить выполненным")
+                .buttonStyle(QuietPressStyle()).foregroundStyle(.tint).disabled(busy).accessibilityLabel(item.done ? "Вернуть в задания" : "Отметить выполненным")
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.title).font(.caption).foregroundStyle(.secondary)
                 Text(item.text).strikethrough(item.done).foregroundStyle(item.done ? .secondary : .primary)

@@ -7,15 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		038762F829307032B97BD46A /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686E20D92A28C6A667C49EEA /* SettingsTests.swift */; };
 		04CA551826A39C33D720D527 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9557C9584ACF3B56FD45D4 /* Model.swift */; };
 		0799781D7BB269B39A11127A /* ScheduleAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */; };
 		096BC8F6B28AB88FF73F32F8 /* TodayHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B58B405F7B2A6706820B09C /* TodayHero.swift */; };
 		0E64A4C14F4A4539C7A29329 /* CampusPassWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BD96FACB24F370D0393136 /* CampusPassWebView.swift */; };
 		1426974393C90FAF7E0C0664 /* HomeworkEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9C6D7F6E23410E03E365A3 /* HomeworkEntryTests.swift */; };
 		21CB43596C17DD4231998FE3 /* ScheduleLessonRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED482A58CFBB8E75978E25 /* ScheduleLessonRow.swift */; };
+		3521344F08AF1ADB896A479C /* ScheduleDateBarMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780D4DF76C1C79F205302818 /* ScheduleDateBarMaterial.swift */; };
 		3A44B167C9E7C3327133F00A /* TodayPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B970D7B9FB4229282D19B8 /* TodayPlanTests.swift */; };
 		531EE9BFC32F1B6761B1789C /* LessonDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DFED5713A4D9D0F072B136 /* LessonDisplay.swift */; };
+		5CEDAD1FD6EB35B0B2A74F4E /* AccentTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D47FCC41A4E0E5B25623671 /* AccentTint.swift */; };
 		67E355F4E78B44B46692858A /* TodayPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDE8B1B048E8D46D4930A43 /* TodayPlan.swift */; };
+		6A145057895CC02428B465E1 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21045CA305EDB531C7A66D78 /* AppTheme.swift */; };
 		71D533CA4C60C6306E87335F /* MyPairsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24056755FB530BC5FE71F201 /* MyPairsApp.swift */; };
 		79D09CEE098E15709854A400 /* AddHomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3482B46EABE10479C83B090F /* AddHomeworkView.swift */; };
 		7C4F4E74748FCFB6BADF572A /* UpcomingLessonRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BD617BA7916BBA266A8A20 /* UpcomingLessonRow.swift */; };
@@ -28,7 +32,10 @@
 		A2A1132DA7DDEC294D26A5E9 /* AppModelNetworkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F62586840B7D66411E722B4F /* AppModelNetworkTests.swift */; };
 		AB6FFF9A83236131D873DC80 /* HomeworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440CED3719439BAF3CA3C4F3 /* HomeworkView.swift */; };
 		C55045C0F8037484C27AEAD3 /* CampusPassCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF5CEF8BA8C38AFE9217E46F /* CampusPassCacheTests.swift */; };
+		E10EDF5FCB20572B7E30697C /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2334FD15765C7486666A6532 /* AppPreferences.swift */; };
+		E533C002699CF2DD4D9377B0 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72BD21D74B75DE8CD99D823 /* SettingsView.swift */; };
 		E565730A53590D4493A1F59D /* HomeworkListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23515F07964BC566459380E3 /* HomeworkListRow.swift */; };
+		EB2062370C76A095D1C6D243 /* AppAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4D59AD69EFCDBDF2839E99 /* AppAccent.swift */; };
 		EE1CFE40265A35ED693657FF /* HomeworkEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D725EB3B93903C4BCC565C12 /* HomeworkEditorState.swift */; };
 		EE2CA552E6F20B570F1AA563 /* CampusPassTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17230CD6046A40B851E7B083 /* CampusPassTests.swift */; };
 		EFD5295DCC969577EA3EF686 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7E4BACB5DBB2D0B444166B89 /* Assets.xcassets */; };
@@ -61,7 +68,10 @@
 		17230CD6046A40B851E7B083 /* CampusPassTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassTests.swift; sourceTree = "<group>"; };
 		19B970D7B9FB4229282D19B8 /* TodayPlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlanTests.swift; sourceTree = "<group>"; };
 		1B58B405F7B2A6706820B09C /* TodayHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayHero.swift; sourceTree = "<group>"; };
+		1D47FCC41A4E0E5B25623671 /* AccentTint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentTint.swift; sourceTree = "<group>"; };
 		1E94E01BF35A1146CF8C0CFE /* MyPairsTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MyPairsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		21045CA305EDB531C7A66D78 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		2334FD15765C7486666A6532 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		23515F07964BC566459380E3 /* HomeworkListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkListRow.swift; sourceTree = "<group>"; };
 		24056755FB530BC5FE71F201 /* MyPairsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPairsApp.swift; sourceTree = "<group>"; };
 		2BABD9BFDD08D38746FE2C39 /* InterfaceMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterfaceMotion.swift; sourceTree = "<group>"; };
@@ -70,17 +80,21 @@
 		5F299E475F3FBEC740F74EDE /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		62BD96FACB24F370D0393136 /* CampusPassWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassWebView.swift; sourceTree = "<group>"; };
 		66A65996E1659C56D03F0808 /* CampusPassCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassCache.swift; sourceTree = "<group>"; };
+		686E20D92A28C6A667C49EEA /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		6A9557C9584ACF3B56FD45D4 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		726A31C644FC9764FC526C61 /* MyPairsUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MyPairsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		74DFED5713A4D9D0F072B136 /* LessonDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDisplay.swift; sourceTree = "<group>"; };
+		780D4DF76C1C79F205302818 /* ScheduleDateBarMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleDateBarMaterial.swift; sourceTree = "<group>"; };
 		7C6CB8AD39E1D0E4C9F59C29 /* SyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusView.swift; sourceTree = "<group>"; };
 		7E4BACB5DBB2D0B444166B89 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7E4D59AD69EFCDBDF2839E99 /* AppAccent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccent.swift; sourceTree = "<group>"; };
 		92BD617BA7916BBA266A8A20 /* UpcomingLessonRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingLessonRow.swift; sourceTree = "<group>"; };
 		983F70DB8097B0630EB0E287 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		A127FCF758A1FF585AF82921 /* LessonDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDisplayTests.swift; sourceTree = "<group>"; };
 		ADCC3B130A2187A829F4E53C /* CampusPassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassView.swift; sourceTree = "<group>"; };
 		B56812843EFF3D0855469FB0 /* CampusPassScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassScript.swift; sourceTree = "<group>"; };
 		B90D2D6E66B3717A86DAF7AB /* MyPairs.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MyPairs.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C72BD21D74B75DE8CD99D823 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D725EB3B93903C4BCC565C12 /* HomeworkEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkEditorState.swift; sourceTree = "<group>"; };
 		DDDE8B1B048E8D46D4930A43 /* TodayPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlan.swift; sourceTree = "<group>"; };
 		E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAppearance.swift; sourceTree = "<group>"; };
@@ -114,7 +128,11 @@
 		82C783D94D2C2074CEC2FF45 /* MyPairs */ = {
 			isa = PBXGroup;
 			children = (
+				1D47FCC41A4E0E5B25623671 /* AccentTint.swift */,
 				3482B46EABE10479C83B090F /* AddHomeworkView.swift */,
+				7E4D59AD69EFCDBDF2839E99 /* AppAccent.swift */,
+				2334FD15765C7486666A6532 /* AppPreferences.swift */,
+				21045CA305EDB531C7A66D78 /* AppTheme.swift */,
 				7E4BACB5DBB2D0B444166B89 /* Assets.xcassets */,
 				66A65996E1659C56D03F0808 /* CampusPassCache.swift */,
 				B56812843EFF3D0855469FB0 /* CampusPassScript.swift */,
@@ -129,8 +147,10 @@
 				6A9557C9584ACF3B56FD45D4 /* Model.swift */,
 				24056755FB530BC5FE71F201 /* MyPairsApp.swift */,
 				E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */,
+				780D4DF76C1C79F205302818 /* ScheduleDateBarMaterial.swift */,
 				E8ED482A58CFBB8E75978E25 /* ScheduleLessonRow.swift */,
 				5F299E475F3FBEC740F74EDE /* ScheduleView.swift */,
+				C72BD21D74B75DE8CD99D823 /* SettingsView.swift */,
 				7C6CB8AD39E1D0E4C9F59C29 /* SyncStatusView.swift */,
 				1B58B405F7B2A6706820B09C /* TodayHero.swift */,
 				DDDE8B1B048E8D46D4930A43 /* TodayPlan.swift */,
@@ -144,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				0F9C6D7F6E23410E03E365A3 /* HomeworkEntryTests.swift */,
+				686E20D92A28C6A667C49EEA /* SettingsTests.swift */,
 			);
 			path = MyPairsUITests;
 			sourceTree = "<group>";
@@ -286,6 +307,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1426974393C90FAF7E0C0664 /* HomeworkEntryTests.swift in Sources */,
+				038762F829307032B97BD46A /* SettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,7 +315,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5CEDAD1FD6EB35B0B2A74F4E /* AccentTint.swift in Sources */,
 				79D09CEE098E15709854A400 /* AddHomeworkView.swift in Sources */,
+				EB2062370C76A095D1C6D243 /* AppAccent.swift in Sources */,
+				E10EDF5FCB20572B7E30697C /* AppPreferences.swift in Sources */,
+				6A145057895CC02428B465E1 /* AppTheme.swift in Sources */,
 				84F9958DECCA06650AB650C5 /* CampusPassCache.swift in Sources */,
 				9F99E89837EA75EFE83523CC /* CampusPassScript.swift in Sources */,
 				863AEEF1F8D46C426267E549 /* CampusPassView.swift in Sources */,
@@ -307,8 +333,10 @@
 				04CA551826A39C33D720D527 /* Model.swift in Sources */,
 				71D533CA4C60C6306E87335F /* MyPairsApp.swift in Sources */,
 				0799781D7BB269B39A11127A /* ScheduleAppearance.swift in Sources */,
+				3521344F08AF1ADB896A479C /* ScheduleDateBarMaterial.swift in Sources */,
 				21CB43596C17DD4231998FE3 /* ScheduleLessonRow.swift in Sources */,
 				93D39D81BD5C088E5FD52111 /* ScheduleView.swift in Sources */,
+				E533C002699CF2DD4D9377B0 /* SettingsView.swift in Sources */,
 				F82C57266DC41C3B23F775CF /* SyncStatusView.swift in Sources */,
 				096BC8F6B28AB88FF73F32F8 /* TodayHero.swift in Sources */,
 				67E355F4E78B44B46692858A /* TodayPlan.swift in Sources */,
