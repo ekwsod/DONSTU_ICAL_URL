@@ -1,6 +1,21 @@
 import XCTest
 
 final class SettingsTests: XCTestCase {
+    func testNativeDateLensInteraction() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--show-schedule", "--reset-preferences"]
+        app.launch()
+        defer { resetPreviewPreferences(app) }
+        let control = app.segmentedControls["schedule-native-week"]
+        XCTAssertTrue(control.waitForExistence(timeout: 15))
+        let first = control.coordinate(withNormalizedOffset: CGVector(dx: 1.0 / 12, dy: 0.5))
+        let last = control.coordinate(withNormalizedOffset: CGVector(dx: 11.0 / 12, dy: 0.5))
+        first.tap()
+        first.press(forDuration: 0.5, thenDragTo: last, withVelocity: .slow, thenHoldForDuration: 1)
+        last.press(forDuration: 0.5, thenDragTo: first, withVelocity: .slow, thenHoldForDuration: 1)
+        XCTAssertTrue(app.staticTexts["День без пар"].waitForExistence(timeout: 5))
+    }
+
     func testGlassLensCanBeDraggedBetweenDates() {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--show-schedule", "--reset-preferences"]

@@ -161,9 +161,13 @@ struct ScheduleView: View {
     }
 
     private func weekStrip(scrubbing: Bool = true) -> some View {
-        ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons, scrubbing: scrubbing, select: select)
-            // A new week gets its own selection geometry: no flying pill across unrelated dates.
-            .id(week.first)
+        Group {
+            if #available(iOS 26.0, *), scrubbing {
+                ScheduleSystemDatePicker(week: week, selected: selected, lessons: model.snapshot.lessons, select: select)
+            } else {
+                ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons, scrubbing: scrubbing, select: select)
+            }
+        }.id(week.first)
     }
 
     private func select(_ date: Date) {
