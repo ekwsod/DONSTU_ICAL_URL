@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct TodayHero: View {
+    @AppStorage(AppPreferences.accentKey, store: AppPreferences.store) private var accent: AppAccent = .graphite
     let plan: TodayPlan
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -23,6 +24,6 @@ struct TodayHero: View {
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
             .padding(24).foregroundStyle(.white)
-            .background(Color(red: 0.16, green: 0.18, blue: 0.20), in: RoundedRectangle(cornerRadius: 26))
+            .background(accent.heroBackground, in: RoundedRectangle(cornerRadius: 26))
     }
 }

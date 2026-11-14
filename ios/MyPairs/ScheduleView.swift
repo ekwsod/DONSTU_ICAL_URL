@@ -111,9 +111,9 @@ struct ScheduleView: View {
                         .frame(width: 44, height: 64).contentShape(.rect)
                 }.buttonStyle(QuietPressStyle()).accessibilityLabel("Предыдущая неделя")
                 ViewThatFits(in: .horizontal) {
-                    weekStrip
+                    weekStrip()
                     ScrollViewReader { proxy in
-                        ScrollView(.horizontal) { weekStrip }.scrollIndicators(.hidden)
+                        ScrollView(.horizontal) { weekStrip(scrubbing: false) }.scrollIndicators(.hidden)
                             .onAppear { proxy.scrollTo(Dates.key(selected), anchor: .center) }
                             .onChange(of: selected) { _, date in proxy.scrollTo(Dates.key(date), anchor: .center) }
                     }
@@ -126,6 +126,7 @@ struct ScheduleView: View {
             .foregroundStyle(ScheduleAppearance.secondary(scheme))
             .padding(4)
             .modifier(ScheduleDateBarMaterial())
+            .padding(.horizontal, -8)
         }
     }
 
@@ -159,8 +160,8 @@ struct ScheduleView: View {
         }.foregroundStyle(ScheduleAppearance.secondary(scheme))
     }
 
-    private var weekStrip: some View {
-        ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons, select: select)
+    private func weekStrip(scrubbing: Bool = true) -> some View {
+        ScheduleWeekStrip(week: week, selected: selected, lessons: model.snapshot.lessons, scrubbing: scrubbing, select: select)
             // A new week gets its own selection geometry: no flying pill across unrelated dates.
             .id(week.first)
     }
@@ -172,80 +173,5 @@ struct ScheduleView: View {
 
     private func moveWeek(_ offset: Int) {
         if let date = Dates.calendar.date(byAdding: .day, value: offset * 7, to: selected) { select(date) }
-    }
-}
-
-private struct ScheduleWeekStrip: View {
-    @MotionPreference private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @AppStorage(AppPreferences.lessonDotsKey, store: AppPreferences.store) private var lessonDots = true
-    @ScaledMetric(relativeTo: .body) private var dayWidth = 44
-    @ScaledMetric(relativeTo: .caption) private var smallSize = 12
-    @ScaledMetric(relativeTo: .body) private var dateSize = 18
-    @ScaledMetric(relativeTo: .title2) private var selectedDateSize = 22
-    @ScaledMetric(relativeTo: .title2) private var dateLineHeight = 28
-    @Namespace private var selection
-    let week: [Date]
-    let selected: Date
-    let lessons: [Lesson]
-    let select: (Date) -> Void
-
-    @ViewBuilder
-    var body: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 0) { dates }
-        } else {
-            dates
-        }
-    }
-
-    private var dates: some View {
-        HStack(spacing: 0) {
-            ForEach(week, id: \.self) { date in
-                let isSelected = Dates.key(date) == Dates.key(selected)
-                let isToday = Dates.calendar.isDateInToday(date)
-                let count = Set(lessons.filter { $0.date == Dates.key(date) }.map(\.start)).count
-                Button { select(date) } label: {
-                    let label = VStack(spacing: 3) {
-                        Text(date, format: .dateTime.weekday(.abbreviated))
-                            .font(.system(size: smallSize, weight: isSelected ? .medium : .regular))
-                        Text(date, format: .dateTime.day())
-                            .font(.system(size: isSelected ? selectedDateSize : dateSize, weight: .semibold))
-                            .monospacedDigit().frame(height: dateLineHeight)
-                        HStack(spacing: 3) {
-                            ForEach(0..<min(count, 8), id: \.self) { _ in Circle().fill(Color.primary).frame(width: 3, height: 3) }
-                            if count > 8 { Text("+\(count - 8)").font(.caption2) }
-                        }.frame(height: 4).accessibilityHidden(true)
-                            .opacity(lessonDots ? (isSelected || isToday ? 1 : 0.6) : 0)
-                    }
-                    .padding(.vertical, 6).frame(minWidth: dayWidth, maxWidth: .infinity)
-                    .foregroundStyle(Color.primary)
-                    selectionSurface(label, isSelected: isSelected)
-                    .overlay { Capsule().strokeBorder(isToday && !isSelected ? Color.primary.opacity(0.2) : .clear, lineWidth: 1) }
-                }.buttonStyle(QuietPressStyle()).id(Dates.key(date)).accessibilityIdentifier("schedule-day-\(Dates.key(date))")
-                    .accessibilityLabel(Text(date, format: .dateTime.weekday(.wide).day().month(.wide)))
-                    .accessibilityValue("\(count) занятий")
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func selectionSurface<Content: View>(_ content: Content, isSelected: Bool) -> some View {
-        if !isSelected {
-            content
-        } else if reduceTransparency {
-            content.background(Color.primary.opacity(0.12), in: .capsule)
-        } else if #available(iOS 26.0, *) {
-            content
-                .glassEffect(.regular.interactive(!reduceMotion), in: .capsule)
-                .glassEffectID("selected-date", in: selection)
-                .glassEffectTransition(reduceMotion ? .identity : .matchedGeometry)
-        } else {
-            content.background {
-                if reduceMotion { Capsule().fill(.thinMaterial) }
-                else { Capsule().fill(.thinMaterial).matchedGeometryEffect(id: "selected-date", in: selection) }
-            }
-        }
     }
 }

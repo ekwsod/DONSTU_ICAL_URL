@@ -12,10 +12,12 @@
 		0799781D7BB269B39A11127A /* ScheduleAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */; };
 		096BC8F6B28AB88FF73F32F8 /* TodayHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B58B405F7B2A6706820B09C /* TodayHero.swift */; };
 		0E64A4C14F4A4539C7A29329 /* CampusPassWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BD96FACB24F370D0393136 /* CampusPassWebView.swift */; };
+		122893C6C2B993D74789692F /* ScheduleWeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B4831472DDFBFCF43A4DC7 /* ScheduleWeekStrip.swift */; };
 		1426974393C90FAF7E0C0664 /* HomeworkEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F9C6D7F6E23410E03E365A3 /* HomeworkEntryTests.swift */; };
 		21CB43596C17DD4231998FE3 /* ScheduleLessonRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED482A58CFBB8E75978E25 /* ScheduleLessonRow.swift */; };
 		3521344F08AF1ADB896A479C /* ScheduleDateBarMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780D4DF76C1C79F205302818 /* ScheduleDateBarMaterial.swift */; };
 		3A44B167C9E7C3327133F00A /* TodayPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B970D7B9FB4229282D19B8 /* TodayPlanTests.swift */; };
+		437D0F0053B8A3CA6FF4D816 /* ScheduleDateFrames.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96E142345354FE41AC9097B /* ScheduleDateFrames.swift */; };
 		531EE9BFC32F1B6761B1789C /* LessonDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DFED5713A4D9D0F072B136 /* LessonDisplay.swift */; };
 		5CEDAD1FD6EB35B0B2A74F4E /* AccentTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D47FCC41A4E0E5B25623671 /* AccentTint.swift */; };
 		67E355F4E78B44B46692858A /* TodayPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDE8B1B048E8D46D4930A43 /* TodayPlan.swift */; };
@@ -100,7 +102,9 @@
 		E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleAppearance.swift; sourceTree = "<group>"; };
 		E8ED482A58CFBB8E75978E25 /* ScheduleLessonRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleLessonRow.swift; sourceTree = "<group>"; };
 		E8F698B92B6E7CF10CE16434 /* HomeworkEditorRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeworkEditorRequest.swift; sourceTree = "<group>"; };
+		E96E142345354FE41AC9097B /* ScheduleDateFrames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleDateFrames.swift; sourceTree = "<group>"; };
 		F62586840B7D66411E722B4F /* AppModelNetworkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelNetworkTests.swift; sourceTree = "<group>"; };
+		F6B4831472DDFBFCF43A4DC7 /* ScheduleWeekStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleWeekStrip.swift; sourceTree = "<group>"; };
 		FF5CEF8BA8C38AFE9217E46F /* CampusPassCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusPassCacheTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -148,8 +152,10 @@
 				24056755FB530BC5FE71F201 /* MyPairsApp.swift */,
 				E2C7598EE6627EEE56E12932 /* ScheduleAppearance.swift */,
 				780D4DF76C1C79F205302818 /* ScheduleDateBarMaterial.swift */,
+				E96E142345354FE41AC9097B /* ScheduleDateFrames.swift */,
 				E8ED482A58CFBB8E75978E25 /* ScheduleLessonRow.swift */,
 				5F299E475F3FBEC740F74EDE /* ScheduleView.swift */,
+				F6B4831472DDFBFCF43A4DC7 /* ScheduleWeekStrip.swift */,
 				C72BD21D74B75DE8CD99D823 /* SettingsView.swift */,
 				7C6CB8AD39E1D0E4C9F59C29 /* SyncStatusView.swift */,
 				1B58B405F7B2A6706820B09C /* TodayHero.swift */,
@@ -334,8 +340,10 @@
 				71D533CA4C60C6306E87335F /* MyPairsApp.swift in Sources */,
 				0799781D7BB269B39A11127A /* ScheduleAppearance.swift in Sources */,
 				3521344F08AF1ADB896A479C /* ScheduleDateBarMaterial.swift in Sources */,
+				437D0F0053B8A3CA6FF4D816 /* ScheduleDateFrames.swift in Sources */,
 				21CB43596C17DD4231998FE3 /* ScheduleLessonRow.swift in Sources */,
 				93D39D81BD5C088E5FD52111 /* ScheduleView.swift in Sources */,
+				122893C6C2B993D74789692F /* ScheduleWeekStrip.swift in Sources */,
 				E533C002699CF2DD4D9377B0 /* SettingsView.swift in Sources */,
 				F82C57266DC41C3B23F775CF /* SyncStatusView.swift in Sources */,
 				096BC8F6B28AB88FF73F32F8 /* TodayHero.swift in Sources */,

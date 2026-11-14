@@ -1,6 +1,27 @@
 import XCTest
 
 final class SettingsTests: XCTestCase {
+    func testGlassLensCanBeDraggedBetweenDates() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--demo", "--show-schedule", "--reset-preferences"]
+        app.launch()
+        defer { resetPreviewPreferences(app) }
+        XCTAssertTrue(app.buttons["schedule-actions"].waitForExistence(timeout: 15))
+        let days = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule-day-"))
+        XCTAssertEqual(days.count, 6)
+        let first = days.element(boundBy: 0)
+        let last = days.element(boundBy: 5)
+        first.tap()
+        first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: last.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(last.isSelected)
+        XCTAssertEqual(days.allElementsBoundByIndex.filter(\.isSelected).count, 1)
+        last.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: first.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(first.isSelected)
+        capture(app, name: "date-lens-after-scrubbing")
+    }
+
     func testPreferencesPersistAndScheduleWorksWithoutAnimations() {
         let app = XCUIApplication()
         app.launchArguments = ["--demo", "--show-schedule", "--reset-preferences"]

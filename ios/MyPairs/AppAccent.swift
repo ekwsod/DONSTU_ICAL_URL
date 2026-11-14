@@ -35,4 +35,14 @@ enum AppAccent: String, CaseIterable, Identifiable {
         case .coral: return scheme == .dark ? Color(red: 0.94, green: 0.59, blue: 0.52) : Color(red: 0.64, green: 0.24, blue: 0.20)
         }
     }
+
+    var heroBackground: Color {
+        switch self {
+        case .graphite: return Color(red: 0.16, green: 0.18, blue: 0.20)
+        case .blue: return Color(red: 0.125, green: 0.306, blue: 0.494)
+        case .green: return Color(red: 0.137, green: 0.290, blue: 0.227)
+        case .amber: return Color(red: 0.392, green: 0.278, blue: 0.094)
+        case .coral: return Color(red: 0.439, green: 0.235, blue: 0.212)
+        }
+    }
 }
