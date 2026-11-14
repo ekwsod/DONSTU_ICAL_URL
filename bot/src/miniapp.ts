@@ -1,6 +1,8 @@
 import type { Env } from './types';
 import { Store } from './store';
 import { webSession } from './webauth';
+import { draftHomework, workersAiRunner } from './ai';
+import { moscowNow } from './morning';
 
 /** Проверка initData: доверяем только подписи Telegram, никогда initDataUnsafe. */
 export async function verifyInitData(raw: string, token: string, owner: string, now = Date.now()): Promise<boolean> {
@@ -34,6 +36,12 @@ export async function miniApi(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Метод не поддерживается' }, 405);
   try {
     const body = await request.json() as Record<string, unknown>;
+    if (body.action === 'draft' && typeof body.text === 'string' && body.text.trim().length > 0 && body.text.length <= 2000) {
+      const lessons = (await store.getLessons())?.lessons ?? [];
+      if (!lessons.length) return json({ error: 'Расписание ещё не загружено' }, 400);
+      const draft = await draftHomework(workersAiRunner(env.AI), body.text, moscowNow(), lessons, (await store.getSettings()).due_mode);
+      return json({ draft });
+    }
     const list = await store.getHomework();
     if (body.action === 'toggle' && typeof body.id === 'string' && typeof body.done === 'boolean') {
       const item = list.find(h => h.id === body.id);
@@ -42,7 +50,9 @@ export async function miniApi(request: Request, env: Env): Promise<Response> {
     } else if (body.action === 'add' && typeof body.lesson_id === 'string' && typeof body.text === 'string' && body.text.trim().length > 0 && body.text.length <= 2000) {
       const lesson = (await store.getLessons())?.lessons.find(l => l.id === body.lesson_id);
       if (!lesson) return json({ error: 'Пара не найдена. Обнови расписание.' }, 400);
-      list.push({ id: crypto.randomUUID(), text: body.text.trim(), title: lesson.title, subject_key: lesson.subject_key, from_lesson_id: '', due_date: lesson.date, due_lesson_id: lesson.id, done: false });
+      const due = body.due_date === undefined ? lesson.date : body.due_date;
+      if (typeof due !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(due) || !Number.isFinite(Date.parse(due)) || new Date(due).toISOString().slice(0,10) !== due) return json({ error: 'Некорректная дата срока' }, 400);
+      list.push({ id: crypto.randomUUID(), text: body.text.trim(), title: lesson.title, subject_key: lesson.subject_key, from_lesson_id: '', due_date: due, due_lesson_id: due === lesson.date ? lesson.id : null, done: false });
     } else return json({ error: 'Проверь поля задания' }, 400);
     await store.putHomework(list);
     return json({ homework: list });

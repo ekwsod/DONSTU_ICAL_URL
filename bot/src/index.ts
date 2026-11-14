@@ -211,7 +211,10 @@ function createBot(env: Env, store: Store): Bot {
   });
   bot.command('web', async (ctx) => {
     const code = await issueWebCode(env);
-    await ctx.reply(`Открой в Safari https://donstu-bot.dstujarvis.workers.dev/app/\n\nКод входа (5 минут):\n${code}\n\nПосле входа: Поделиться → На экран «Домой».`);
+    await ctx.reply(`Открой в Safari https://donstu-bot.dstujarvis.workers.dev/app/\n\nКод входа (5 минут):\n<code>${code}</code>\n\nПосле входа: Поделиться → На экран «Домой».`, {
+      parse_mode: 'HTML',
+      reply_markup: new InlineKeyboard().copyText('Скопировать код', code),
+    });
   });
   bot.command("new", menu((ctx) => askNewHomework(ctx)));
   bot.hears(MENU.homework, menu(showHomeworkList));
