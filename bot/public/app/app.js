@@ -1,7 +1,7 @@
 const tg = window.Telegram?.WebApp;
-const touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; touchIcon.href = '/app/apple-touch-icon-v2.png'; document.head.append(touchIcon);
+const touchIcon = document.createElement('link'); touchIcon.rel = 'apple-touch-icon'; touchIcon.href = '/app/daymark-touch.png'; document.head.append(touchIcon);
 const manifest = document.createElement('link'); manifest.rel = 'manifest'; manifest.href = '/app/manifest.webmanifest'; document.head.append(manifest);
-for (const [name,content] of [['apple-mobile-web-app-capable','yes'],['apple-mobile-web-app-title','Мои пары'],['theme-color','#f5f7fc']]) { const meta = document.createElement('meta'); meta.name=name; meta.content=content; document.head.append(meta); }
+for (const [name,content] of [['apple-mobile-web-app-capable','yes'],['apple-mobile-web-app-title','Daymark'],['theme-color','#f5f7fc']]) { const meta = document.createElement('meta'); meta.name=name; meta.content=content; document.head.append(meta); }
 tg?.ready(); tg?.expand();
 const $ = id => document.getElementById(id);
 let data = { lessons: [], homework: [] }, selected, active = 'schedule';
@@ -18,7 +18,7 @@ async function api(body) {
 function showLogin() {
   if ($('login')) return;
   const box = node('dialog'); box.id = 'login'; const form = node('form');
-  form.append(node('h2','Войти в мои пары'), node('p','Отправь /web боту и вставь полученный код. После входа в Safari нажми «Поделиться» → «На экран Домой».'));
+  form.append(node('h2','Войти в Daymark'), node('p','Отправь /web боту и вставь полученный код. После входа в Safari нажми «Поделиться» → «На экран Домой».'));
   const input = node('input'); input.required=true; input.autocomplete='off'; input.setAttribute('aria-label','Код из бота'); input.placeholder='Код из бота'; input.style.cssText='width:100%;padding:14px;margin:10px 0 20px';
   const button=node('button','Войти','primary'); button.type='submit'; const error=node('p'); error.setAttribute('role','alert');
   form.append(input,button,error); form.onsubmit=async e=>{e.preventDefault();button.disabled=true;try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:input.value.trim()})});const result=await response.json();if(!response.ok)throw Error(result.error || 'Ошибка входа');box.close();box.remove();await load();}catch(e){error.textContent=e.message;}finally{button.disabled=false;}};

@@ -87,7 +87,7 @@ struct LoginView: View {
                 Section("Код из бота") { TextField("Вставить код", text: $code).textInputAutocapitalization(.never).autocorrectionDisabled().privacySensitive() }
                 if let error { Text(error).foregroundStyle(.red) }
                 Section { Button { busy = true; Task { defer { busy = false }; do { try await model.login(code) } catch { self.error = error.localizedDescription } } } label: { HStack { Spacer(); if busy { ProgressView() } else { Text("Войти").fontWeight(.semibold) }; Spacer() } }.disabled(busy || code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
-            }.navigationTitle("Мои пары")
+            }.navigationTitle("Daymark")
         }
     }
 }

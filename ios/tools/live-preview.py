@@ -6,9 +6,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 PAGE = '''<!doctype html><html lang="ru"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Мои пары · Предпросмотр</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Daymark · Предпросмотр</title>
 <style>body{margin:0;padding:24px;background:#eef1f3;color:#20262b;font:15px system-ui;text-align:center}h1{font-size:20px;font-weight:600;margin:0 0 8px}p{margin:0 0 20px;color:#58636c}img{display:block;max-height:82vh;max-width:100%;margin:auto;border-radius:20px}#state{margin-top:12px;font-size:13px}@media(prefers-color-scheme:dark){body{background:#101416;color:#f4f5f6}p{color:#a8b0ba}}</style>
-<h1>Мои пары</h1><p>Текущий экран приложения в симуляторе</p><!--motion--><img id="screen" alt="Экран приложения «Мои пары»"><p id="state"></p>
+<h1>Daymark</h1><p>Текущий экран приложения в симуляторе</p><!--motion--><img id="screen" alt="Экран приложения «Daymark»"><p id="state"></p>
 <script>const screen=document.getElementById('screen'),state=document.getElementById('state');let timer;function next(){clearTimeout(timer);if(!document.hidden)screen.src='/screen.png?t='+Date.now()}screen.onload=()=>{state.textContent='';timer=setTimeout(next,1000)};screen.onerror=()=>{state.textContent='Ожидаем симулятор…';timer=setTimeout(next,2000)};document.addEventListener('visibilitychange',next);next()</script></html>'''.encode('utf-8')
 
 
